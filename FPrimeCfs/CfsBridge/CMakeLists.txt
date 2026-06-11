@@ -15,7 +15,7 @@
 # root when not specifically overridden by the developer, i.e. the module defined by
 # `MyProj/Some/Path/CMakeLists.txt` will be named `MyProj_Some_Path`.
 include_directories("${CMAKE_CURRENT_LIST_DIR}/../../fsw/inc")
-register_fprime_library(
+register_fprime_module(
     AUTOCODER_INPUTS
         "${CMAKE_CURRENT_LIST_DIR}/CfsBridge.fpp"
     SOURCES

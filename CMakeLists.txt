@@ -1,16 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(CFE_FPRIME_CFS C CXX)
-set(FPRIME_LIBRARY_LOCATIONS_LOCAL "${FPRIME_LIBRARY_LOCATIONS}")
-list(APPEND FPRIME_LIBRARY_LOCATIONS_LOCAL "${PROJECT_SOURCE_DIR}")
-set(FPRIME_LIBRARY_LOCATIONS "${FPRIME_LIBRARY_LOCATIONS_LOCAL}" CACHE INTERNAL "Locations to search for F prime libraries" FORCE)
-
-set(FPRIME_INCLUDE_ROOTS "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}"  ${FPRIME_INCLUDE_ROOTS} CACHE INTERNAL "Locations to search for F prime include files" FORCE)
-
-set(FPRIME_PROJECT_ROOT "${PROJECT_SOURCE_DIR}" CACHE PATH "Root path of F prime project" FORCE)
-list(APPEND FPRIME_BUILD_LOCATIONS "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}")
+register_fprime_project()
 add_compile_options(-fPIC)
-list(APPEND CMAKE_MODULE_PATH "${FPRIME_FRAMEWORK_PATH}/cmake")
-fprime_setup_global_includes()
-include_directories("${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}")
+
 
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/FPrimeCfs")
