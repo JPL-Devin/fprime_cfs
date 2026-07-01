@@ -40,6 +40,16 @@ The reusable components and topologies provided by F Prime can be used to constr
 | CfsBridge    | Expose access to the cFS messaging bus as an F Prime Component. | [CfsBridge](./FPrimeCfs/CfsBridge/docs/sdd.md)       |
 | PollingTimer | Rate group timer that is polled by the main program loop.       | [PollingTimer](./FPrimeCfs/PollingTimer/docs/sdd.md) |
 
+## Integration and Usage
+
+In order to use this library, you will need to add fprime and this library as librarues in your cFS `targets.cmake`:
+
+```cmake
+list(APPEND MISSION_GLOBAL_APPLIST fprime fprime_cfs ...)
+```
+
+This will integrate the library into the cFS build and make the targets available for the F Prime build as well.
+
 ## Work To Go
 
 This library still needs to demonstrate how to subscribe to cFS messages that aren't strictly commands (e.g. telemetry) and how to rout these messages.
