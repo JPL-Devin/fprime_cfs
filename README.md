@@ -53,3 +53,8 @@ This will integrate the library into the cFS build and make the targets availabl
 ## Work To Go
 
 This library still needs to demonstrate how to subscribe to cFS messages that aren't strictly commands (e.g. telemetry) and how to rout these messages.
+
+Unsupported features:
+1. Unit-Tests
+2. Cross-compilation to other F Prime platforms
+
