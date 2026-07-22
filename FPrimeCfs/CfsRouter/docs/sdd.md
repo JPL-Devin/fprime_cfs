@@ -59,6 +59,9 @@ unknown route).
   map is full, the packet is returned unrouted with a warning event.
 - If the target output port for a computed route is not connected, the buffer is returned immediately rather than
   asserting or leaking.
+- For `Svc.Router` interface compatibility (so CfsRouter can substitute for `Svc.FprimeRouter` in subtopologies),
+  the component also provides `fileOut` (unused; no file route type is defined) and `fileBufferReturnIn`, which
+  behaves identically to `bufferReturnIn`.
 
 ## Requirements
 

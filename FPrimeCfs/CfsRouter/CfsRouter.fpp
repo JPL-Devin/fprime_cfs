@@ -34,6 +34,13 @@ module FPrimeCfs {
         @ Port for receiving command responses from a command dispatcher (no-op)
         sync input port cmdResponseIn: Fw.CmdResponse
 
+        @ Port for sending file packets as Fw::Buffer (Svc.Router interface
+        @ compatibility; no file route type is currently defined)
+        output port fileOut: Fw.BufferSend
+
+        @ Port for receiving back ownership of buffers sent on fileOut
+        sync input port fileBufferReturnIn: Fw.BufferSend
+
         # ----------------------------------------------------------------------
         # cFS routes (ownership transferred; returned on bufferReturnIn)
         # ----------------------------------------------------------------------

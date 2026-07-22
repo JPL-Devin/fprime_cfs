@@ -58,6 +58,10 @@ void CfsRouter ::bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffe
     this->returnData(fwBuffer, context);
 }
 
+void CfsRouter ::fileBufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) {
+    this->bufferReturnIn_handler(portNum, fwBuffer);
+}
+
 // ----------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------
