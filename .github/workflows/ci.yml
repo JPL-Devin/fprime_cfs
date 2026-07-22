@@ -1,0 +1,82 @@
+# CI for the fprime_cfs library:
+#   1. Build and run the unit tests for all fprime_cfs components
+#   2. Build the fprime_cfs_reference external project with this revision of fprime_cfs
+#      and run its GDS integration tests
+
+name: "CI"
+
+on:
+  push:
+    branches: [ devel, main ]
+  pull_request:
+    branches: [ devel, main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: "Unit Tests"
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout fprime_cfs"
+        uses: actions/checkout@v4
+      - name: "Checkout F´"
+        run: git clone --depth 1 --branch devel --recurse-submodules https://github.com/nasa/fprime.git ../fprime
+      - name: "Setup F´ environment"
+        uses: nasa/fprime-actions/setup@devel
+        with:
+          location: ../fprime
+      - name: "Build and Run Unit Tests"
+        uses: nasa/fprime-actions/run-unit-tests@devel
+        with:
+          generate-args: "-DFPRIME_ENABLE_FRAMEWORK_UTS=OFF"
+
+  reference-build-and-test:
+    name: "Reference Build and Integration Tests"
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Make Space"
+        uses: nasa/fprime-actions/make-space@devel
+      - name: "Checkout fprime_cfs_reference"
+        uses: actions/checkout@v4
+        with:
+          repository: fprime-community/fprime_cfs_reference
+          ref: devel
+          submodules: recursive
+      - name: "Overlay current fprime_cfs revision"
+        uses: actions/checkout@v4
+        with:
+          path: libs/fprime_cfs
+      - name: "Setup F´ environment"
+        uses: nasa/fprime-actions/setup@devel
+        with:
+          location: ./libs/fprime
+      - name: "Build"
+        run: |
+          make SIMULATION=native prep
+          make
+          make install
+      - name: "Run Integration Tests"
+        uses: nasa/fprime-actions/run-integration-tests@devel
+        with:
+          gds-working-directory: build-artifacts/exe/cpu1
+          test-working-directory: test/int
+          binary: ./core-cpu1
+          binary-args: ""
+          gds-args: >-
+            --ip-client --ip-port 15010
+            --dictionary ${{ github.workspace }}/build-artifacts/exe/Linux/fprime_app/dict/FPrimeDeploymentTopologyDictionary.json
+          pytest-args: >-
+            --dictionary ${{ github.workspace }}/build-artifacts/exe/Linux/fprime_app/dict/FPrimeDeploymentTopologyDictionary.json
+      - name: "Archive logs"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cfs-reference-logs
+          path: build-artifacts/exe/cpu1/gds-logs
+          retention-days: 5
