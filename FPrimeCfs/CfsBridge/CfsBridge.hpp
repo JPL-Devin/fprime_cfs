@@ -21,6 +21,13 @@ extern "C" {
 namespace FPrimeCfs
 {
 
+//! Size in bytes of the CCSDS space packet primary header
+constexpr FwSizeType CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE = 6;
+//! Mask of the 11 bit APID field within the space packet stream identifier
+constexpr U32 CFS_BRIDGE_SPACE_PACKET_APID_MASK = 0x07FF;
+//! Mask of the packet type bit (1 = command) within the space packet stream identifier
+constexpr U32 CFS_BRIDGE_SPACE_PACKET_TYPE_MASK = 0x1000;
+
 class CfsBridge final : public CfsBridgeComponentBase
 {
   public:
@@ -98,7 +105,6 @@ private:
     CFE_SB_PipeId_t inputPipe;
 
     ConfigurationState m_configurationState = UNCONFIGURED;  //!< Tracks the configuration state of the component to ensure proper ordering of operations
-    bool m_incrementSequenceCount = true;  //!< Passed to CFE_SB_TransmitMsg to update the sequence count on transmission
     bool m_prerolled = false;  //!< Initial comStatusOut signal has been sent to enable downstream data flow
     bool m_paused = true;  //!< Awaiting a comStatusIn success before sending the next deframed message
     bool m_flowControlled = false;  //!< When true, deframed messages are gated by comStatusIn signals

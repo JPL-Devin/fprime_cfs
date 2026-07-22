@@ -35,32 +35,39 @@ TEST(OffNominal, SubscribeFailure) {
     tester.testSubscribeFailure();
 }
 
-TEST(Nominal, FrameCommand) {
-    COMMENT("Command APID data is framed with a command header and transmitted");
+TEST(Nominal, TransmitSinglePacket) {
+    COMMENT("A single complete space packet is transmitted as one software bus message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameCommand();
+    tester.testTransmitSinglePacket();
 }
 
-TEST(Nominal, FrameTelemetry) {
-    COMMENT("Non-command APID data is framed with a telemetry header and transmitted");
+TEST(Nominal, TransmitMultiplePackets) {
+    COMMENT("Multiple concatenated space packets are each transmitted as their own message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameTelemetry();
+    tester.testTransmitMultiplePackets();
 }
 
-TEST(OffNominal, FrameInitFailure) {
-    COMMENT("Buffer ownership is returned and com status emitted on message init failure");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameInitFailure();
-}
-
-TEST(OffNominal, FrameTransmitFailure) {
+TEST(OffNominal, TransmitFailure) {
     COMMENT("Buffer ownership is returned and com status emitted on transmit failure");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameTransmitFailure();
+    tester.testTransmitFailure();
+}
+
+TEST(OffNominal, TransmitTruncated) {
+    COMMENT("A packet whose length field exceeds the available data is dropped");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitTruncated();
+}
+
+TEST(OffNominal, TransmitResidual) {
+    COMMENT("Residual bytes too small to form a primary header are dropped");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitResidual();
 }
 
 TEST(Nominal, Receive) {
@@ -96,13 +103,6 @@ TEST(OffNominal, ReceiveGetSizeFailure) {
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
     FPrimeCfs::CfsBridgeTester tester;
     tester.testReceiveGetSizeFailure();
-}
-
-TEST(OffNominal, FrameOversize) {
-    COMMENT("Data too large for a cFS message is dropped with buffer return and com status");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameOversize();
 }
 
 TEST(Nominal, FlowControl) {

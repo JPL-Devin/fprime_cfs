@@ -19,18 +19,19 @@ void reset() {
     s_state.createPipeStatus = CFE_SUCCESS;
     s_state.subscribeStatus = CFE_SUCCESS;
     s_state.transmitStatus = CFE_SUCCESS;
-    s_state.msgInitStatus = CFE_SUCCESS;
     s_state.getSizeStatus = CFE_SUCCESS;
     s_state.receiveStatus = CFE_SUCCESS;
 }
 
-//! Command messages carry the 0x1000 type bit in the default cFE MsgId V1 scheme
-static bool isCommandMsgId(CFE_SB_MsgId_Atom_t msgIdValue) {
-    return (msgIdValue & 0x1000) != 0;
+//! Read the big-endian stream identifier from a CCSDS primary header
+static CFE_SB_MsgId_Atom_t streamId(const CFE_MSG_Message_t* msgPtr) {
+    return static_cast<CFE_SB_MsgId_Atom_t>((msgPtr->Pri.StreamId[0] << 8) | msgPtr->Pri.StreamId[1]);
 }
 
-static size_t headerSize(CFE_SB_MsgId_Atom_t msgIdValue) {
-    return isCommandMsgId(msgIdValue) ? sizeof(CFE_MSG_CommandHeader_t) : sizeof(CFE_MSG_TelemetryHeader_t);
+//! Compute the total packet size from the CCSDS primary header length field
+static size_t packetSize(const CFE_MSG_Message_t* msgPtr) {
+    return static_cast<size_t>(((msgPtr->Pri.Length[0] << 8) | msgPtr->Pri.Length[1]) + 1 +
+                               sizeof(CCSDS_PrimaryHeader_t));
 }
 
 void queueMessage(CFE_SB_MsgId_Atom_t msgIdValue, const uint8* payload, size_t payloadSize) {
@@ -40,9 +41,14 @@ void queueMessage(CFE_SB_MsgId_Atom_t msgIdValue, const uint8* payload, size_t p
     unsigned int slot = (s_state.pendingHead + s_state.pendingCount) % STUB_MAX_ENTRIES;
     CFE_SB_Buffer_t& buffer = s_state.pendingBuffers[slot];
     (void)std::memset(&buffer, 0, sizeof(buffer));
-    size_t header = headerSize(msgIdValue);
-    buffer.Msg.MsgId = msgIdValue;
-    buffer.Msg.Size = static_cast<uint32>(header + payloadSize);
+    buffer.Msg.Pri.StreamId[0] = static_cast<uint8>((msgIdValue >> 8) & 0xFF);
+    buffer.Msg.Pri.StreamId[1] = static_cast<uint8>(msgIdValue & 0xFF);
+    buffer.Msg.Pri.Sequence[0] = 0xC0;  // Sequence flags: unsegmented user data
+    buffer.Msg.Pri.Sequence[1] = 0x00;
+    size_t lengthToken = (payloadSize > 0) ? (payloadSize - 1) : 0;
+    buffer.Msg.Pri.Length[0] = static_cast<uint8>((lengthToken >> 8) & 0xFF);
+    buffer.Msg.Pri.Length[1] = static_cast<uint8>(lengthToken & 0xFF);
+    size_t header = sizeof(CCSDS_PrimaryHeader_t);
     if ((payload != nullptr) && (payloadSize > 0) && (header + payloadSize <= sizeof(buffer.Bytes))) {
         (void)std::memcpy(&buffer.Bytes[header], payload, payloadSize);
     }
@@ -106,10 +112,11 @@ CFE_Status_t CFE_SB_TransmitMsg(const CFE_MSG_Message_t* msgPtr, bool incrementS
     CfeStub::State& s = CfeStub::s_state;
     if ((msgPtr != nullptr) && (s.transmitCount < CfeStub::STUB_MAX_ENTRIES)) {
         CfeStub::TransmitCall& call = s.transmitCalls[s.transmitCount];
-        size_t header = CfeStub::headerSize(msgPtr->MsgId);
-        call.msgIdValue = msgPtr->MsgId;
-        call.totalSize = msgPtr->Size;
-        call.payloadSize = (msgPtr->Size > header) ? (msgPtr->Size - header) : 0;
+        size_t header = sizeof(CCSDS_PrimaryHeader_t);
+        size_t total = CfeStub::packetSize(msgPtr);
+        call.msgIdValue = CfeStub::streamId(msgPtr);
+        call.totalSize = total;
+        call.payloadSize = (total > header) ? (total - header) : 0;
         call.incrementSequenceCount = incrementSequenceCount;
         size_t copySize = (call.payloadSize <= CfeStub::STUB_MAX_PAYLOAD) ? call.payloadSize : CfeStub::STUB_MAX_PAYLOAD;
         (void)std::memcpy(call.payload, reinterpret_cast<const uint8*>(msgPtr) + header, copySize);
@@ -118,19 +125,10 @@ CFE_Status_t CFE_SB_TransmitMsg(const CFE_MSG_Message_t* msgPtr, bool incrementS
     return s.transmitStatus;
 }
 
-CFE_Status_t CFE_MSG_Init(CFE_MSG_Message_t* msgPtr, CFE_SB_MsgId_t msgId, CFE_MSG_Size_t size) {
-    CfeStub::State& s = CfeStub::s_state;
-    if (s.msgInitStatus == CFE_SUCCESS && msgPtr != nullptr) {
-        msgPtr->MsgId = msgId.Value;
-        msgPtr->Size = static_cast<uint32>(size);
-    }
-    return s.msgInitStatus;
-}
-
 CFE_Status_t CFE_MSG_GetSize(const CFE_MSG_Message_t* msgPtr, CFE_MSG_Size_t* size) {
     CfeStub::State& s = CfeStub::s_state;
     if (s.getSizeStatus == CFE_SUCCESS && msgPtr != nullptr && size != nullptr) {
-        *size = msgPtr->Size;
+        *size = CfeStub::packetSize(msgPtr);
     }
     return s.getSizeStatus;
 }

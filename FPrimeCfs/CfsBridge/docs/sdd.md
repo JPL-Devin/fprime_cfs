@@ -1,10 +1,12 @@
 # FPrimeCfs::CfsBridge
 
 Bridge F Prime communication constructs to and from the cFS Software Bus (SB). `CfsBridge` acts as the
-boundary between an F Prime communication stack and cFS: it *frames* outgoing F Prime data into cFS
-messages and transmits them on the software bus, and it emits incoming cFS messages whole (as CCSDS
-space packets) for deframing by a downstream deframer (e.g. `Svc::Ccsds::SpacePacketDeframer`). In
-F Prime terms it fills the combined role of a framer and a communication driver.
+boundary between an F Prime communication stack and cFS: outgoing data is one or more complete CCSDS
+space packets (e.g. from an `Svc::Ccsds::SpacePacketFramer`, possibly concatenated by an
+`Svc::ComAggregator`), each transmitted on the software bus as its own message, and incoming cFS
+messages are emitted whole (as CCSDS space packets) for deframing by a downstream deframer (e.g.
+`Svc::Ccsds::SpacePacketDeframer`). In F Prime terms it fills the role of a communication driver at
+the space packet layer.
 
 `CfsBridge` is a **queued** component: incoming F Prime port calls on `dataIn` are queued, and the
 hosting cFS application drives the component by calling `process()` from its run loop. Each `process()`
@@ -41,7 +43,7 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | output | `dataOut` | `Svc.ComDataWithContext` | Complete received SB message (a CCSDS space packet including headers) with a default context |
 | sync input | `dataReturnIn` | `Svc.ComDataWithContext` | Return of ownership for buffers sent on `dataOut` (no-op: SB owns its buffers) |
 | sync input | `comStatusIn` | `Fw.SuccessCondition` | Downstream com status; a SUCCESS unpauses one received message when flow control is enabled |
-| async input | `dataIn` | `Svc.ComDataWithContext` | F Prime data to frame into a cFS message and transmit on the SB |
+| async input | `dataIn` | `Svc.ComDataWithContext` | One or more complete CCSDS space packets, each transmitted on the SB as its own message |
 | output | `dataReturnOut` | `Svc.ComDataWithContext` | Return of ownership for buffers received on `dataIn` |
 | output | `comStatusOut` | `Fw.SuccessCondition` | Com status emitted after each transmission attempt, and once as a preroll |
 
@@ -50,9 +52,9 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | Name | Description | Validation |
 |---|---|---|
 | FPRIMECFS-CFSBRIDGE-001 | `CfsBridge` shall create a software bus pipe with the configured depth and name when `configure()` is called, and shall report the software bus status to the caller | Unit test |
-| FPRIMECFS-CFSBRIDGE-002 | `CfsBridge` shall subscribe to the software bus message ID derived from the supplied APID when `subscribe()` is called, mapping `FW_PACKET_COMMAND` into the platform command message ID space and all other APIDs into the platform telemetry message ID space | Unit test |
-| FPRIMECFS-CFSBRIDGE-003 | `CfsBridge` shall frame each buffer received on `dataIn` into a cFS message (command header for `FW_PACKET_COMMAND`, telemetry header otherwise) and transmit it on the software bus | Unit test |
-| FPRIMECFS-CFSBRIDGE-004 | `CfsBridge` shall drop `dataIn` data that cannot be transmitted (oversize data, message initialization failure, or transmission failure) and log an error, without asserting | Unit test |
+| FPRIMECFS-CFSBRIDGE-002 | `CfsBridge` shall subscribe to the software bus message ID derived from the supplied APID when `subscribe()` is called, mirroring the space packet stream identifier: the APID in the low 11 bits with the packet type bit set for `FW_PACKET_COMMAND` and clear otherwise | Unit test |
+| FPRIMECFS-CFSBRIDGE-003 | `CfsBridge` shall transmit each complete CCSDS space packet contained in a buffer received on `dataIn` as its own software bus message | Unit test |
+| FPRIMECFS-CFSBRIDGE-004 | `CfsBridge` shall drop `dataIn` data that cannot be transmitted (truncated packets, residual bytes, or transmission failure) and log an error, without asserting | Unit test |
 | FPRIMECFS-CFSBRIDGE-005 | `CfsBridge` shall poll the software bus pipe during `process()` and emit each received message whole (headers included) on `dataOut` with a default frame context | Unit test |
 | FPRIMECFS-CFSBRIDGE-006 | `CfsBridge` shall drop received software bus messages whose size cannot be read, logging an error, without asserting | Unit test |
 | FPRIMECFS-CFSBRIDGE-007 | When configured with flow control enabled, `CfsBridge` shall hold received messages while paused and shall release exactly one message per `comStatusIn` SUCCESS signal | Unit test |
@@ -61,14 +63,15 @@ match the downstream pipeline (e.g. a deframer/router stack).
 
 ## Design
 
-### Framing (F Prime → cFS)
+### Transmitting (F Prime → cFS)
 
-`dataIn` is an async input: invocations are queued and dispatched from `process()`. The handler builds
-a cFS message in a local, statically-sized union of command and telemetry headers plus payload space,
-initializes it with `CFE_MSG_Init()` using the message ID derived from the context APID, copies the
-payload behind the header, and transmits with `CFE_SB_TransmitMsg()`. Ownership of the incoming buffer
-is always returned via `dataReturnOut` and `comStatusOut` always reports SUCCESS, since the software
-bus does not support retry semantics.
+`dataIn` is an async input: invocations are queued and dispatched from `process()`. The buffer
+contains one or more complete CCSDS space packets. The handler walks the buffer using each packet's
+primary header length field and transmits each packet in place with `CFE_SB_TransmitMsg()` (the
+software bus derives the message ID from the packet's stream identifier and copies the data).
+Truncated packets and residual bytes are dropped with a logged error. Ownership of the incoming
+buffer is always returned via `dataReturnOut` and `comStatusOut` always reports SUCCESS, since the
+software bus does not support retry semantics.
 
 ### Receiving (cFS → F Prime)
 
@@ -113,3 +116,4 @@ Coverage: 100% lines, 100% functions.
 |---|---|
 | 2026-07-22 | Initial SDD with requirements and unit tests |
 | 2026-07-22 | Emit received messages whole (space packets) for downstream deframing instead of deframing internally |
+| 2026-07-22 | Transmit complete space packets from `dataIn` as-is (one SB message per packet) instead of framing payloads; message IDs mirror space packet stream identifiers |
