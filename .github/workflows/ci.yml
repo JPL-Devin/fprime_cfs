@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: "Setup fprime_cfs_reference with fprime_cfs overlay"
-        uses: nasa/fprime-actions/external-repository-setup@devel
+        uses: JPL-Devin/fprime-actions/external-repository-setup@devin/1784743217-overlay-location
         with:
           target_repository: fprime-community/fprime_cfs_reference
           fprime_location: ./libs/fprime
@@ -42,7 +42,7 @@ jobs:
       - name: "Make Space"
         uses: nasa/fprime-actions/make-space@devel
       - name: "Setup fprime_cfs_reference with fprime_cfs overlay"
-        uses: nasa/fprime-actions/external-repository-setup@devel
+        uses: JPL-Devin/fprime-actions/external-repository-setup@devin/1784743217-overlay-location
         with:
           target_repository: fprime-community/fprime_cfs_reference
           fprime_location: ./libs/fprime
