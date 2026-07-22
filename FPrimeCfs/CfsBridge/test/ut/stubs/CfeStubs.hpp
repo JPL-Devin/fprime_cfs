@@ -45,7 +45,7 @@ struct State {
     CFE_Status_t subscribeStatus;
     CFE_Status_t transmitStatus;
     CFE_Status_t msgInitStatus;
-    CFE_Status_t getMsgIdStatus;
+    CFE_Status_t getSizeStatus;
     CFE_Status_t receiveStatus;  //!< Returned by CFE_SB_ReceiveBuffer when not CFE_SUCCESS
 
     // Call records

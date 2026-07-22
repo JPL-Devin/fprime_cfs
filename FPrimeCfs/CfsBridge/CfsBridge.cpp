@@ -104,32 +104,18 @@ void CfsBridge ::poll() {
         Fw::Logger::log("[DEBUG] Received message!\n");
         CFE_MSG_Message_t* received_message = &buffer->Msg;
 
-
-        U8* payload = static_cast<U8*>(CFE_SB_GetUserData(received_message));
-        FwSizeType payload_length = CFE_SB_GetUserDataLength(received_message);
-
-        Fw::Buffer fwBuffer(payload, payload_length);
-        ComCfg::FrameContext context;
-        CFE_SB_MsgId_t message_id;
-        status = CFE_MSG_GetMsgId(received_message, &message_id);
+        // Software bus messages are external input: drop with an error, not an assert
+        CFE_MSG_Size_t message_size = 0;
+        status = CFE_MSG_GetSize(received_message, &message_size);
         if (status != CFE_SUCCESS) {
-            Fw::Logger::log("[ERROR] Failed to get message ID from received message: 0x%08x\n", status);
+            Fw::Logger::log("[ERROR] Failed to get size from received message: 0x%08x\n", status);
             return;
         }
-        // Convert out the message ID and then the topic (APID) from the message
-        // WARNING: this is not "allowed" by cFS but because there is no inverse macro for CFE_PLATFORM_CMD_TOPICID_TO_MIDV
-        //     we have not a lot of choice here.
-        CFE_SB_MsgId_Atom_t message_id_value = CFE_SB_MsgIdToValue(message_id);
-        ComCfg::Apid::T apid_value = static_cast<ComCfg::Apid::T>(message_id_value & 0x7FF);
-        // The message id must map to a valid APID that maps back to the same message id. Messages from the software
-        // bus are external input and thus are dropped with an error rather than asserted on. Validity is checked
-        // before constructing a ComCfg::Apid because the enum constructor asserts on invalid values.
-        if ((not ComCfg::Apid::isValid(apid_value)) or
-            (message_id_value != CFE_SB_MsgIdToValue(this->getCfsMessageId(apid_value)))) {
-            Fw::Logger::log("[ERROR] Received message with invalid APID: 0x%08x\n", message_id_value);
-            return;
-        }
-        context.set_apid(ComCfg::Apid(apid_value));
+
+        // Forward the complete message (a CCSDS space packet) with a default context; a downstream
+        // deframer (e.g. Svc.Ccsds.SpacePacketDeframer) derives the APID and other fields from the headers
+        Fw::Buffer fwBuffer(reinterpret_cast<U8*>(received_message), static_cast<FwSizeType>(message_size));
+        ComCfg::FrameContext context;
         this->m_paused = true;
         // Send the message out of this port
         this->dataOut_out(0, fwBuffer, context);

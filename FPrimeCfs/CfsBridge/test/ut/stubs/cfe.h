@@ -64,12 +64,10 @@ CFE_Status_t CFE_SB_CreatePipe(CFE_SB_PipeId_t* pipeIdPtr, uint16 depth, const c
 CFE_Status_t CFE_SB_Subscribe(CFE_SB_MsgId_t msgId, CFE_SB_PipeId_t pipeId);
 CFE_Status_t CFE_SB_ReceiveBuffer(CFE_SB_Buffer_t** bufPtr, CFE_SB_PipeId_t pipeId, int32 timeOut);
 CFE_Status_t CFE_SB_TransmitMsg(const CFE_MSG_Message_t* msgPtr, bool incrementSequenceCount);
-void* CFE_SB_GetUserData(CFE_MSG_Message_t* msgPtr);
-size_t CFE_SB_GetUserDataLength(const CFE_MSG_Message_t* msgPtr);
 
 /* Message API (implemented by CfeStubs.cpp) */
 CFE_Status_t CFE_MSG_Init(CFE_MSG_Message_t* msgPtr, CFE_SB_MsgId_t msgId, CFE_MSG_Size_t size);
-CFE_Status_t CFE_MSG_GetMsgId(const CFE_MSG_Message_t* msgPtr, CFE_SB_MsgId_t* msgId);
+CFE_Status_t CFE_MSG_GetSize(const CFE_MSG_Message_t* msgPtr, CFE_MSG_Size_t* size);
 
 #if defined(__cplusplus)
 }

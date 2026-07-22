@@ -62,26 +62,23 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     void testFrameTransmitFailure();
 
     // ----------------------------------------------------------------------
-    // Tests: deframing (software bus -> dataOut)
+    // Tests: receive (software bus -> dataOut)
     // ----------------------------------------------------------------------
 
-    //! Received software bus messages are deframed and sent out dataOut with the APID context
-    void testDeframe();
+    //! Received software bus messages are sent whole out dataOut with a default context
+    void testReceive();
 
     //! process() emits a single preroll com status once subscribed
     void testPreroll();
 
-    //! Messages with ids that do not map to a valid APID are dropped
-    void testDeframeInvalidApid();
-
     //! Empty software bus polls produce no output
-    void testDeframeNoMessage();
+    void testReceiveNoMessage();
 
     //! Software bus receive errors produce no output
-    void testDeframeReceiveError();
+    void testReceiveError();
 
-    //! Messages whose id cannot be read are dropped
-    void testDeframeGetMsgIdFailure();
+    //! Messages whose size cannot be read are dropped
+    void testReceiveGetSizeFailure();
 
     //! Data too large for a cFS message is dropped with buffer return and com status
     void testFrameOversize();
