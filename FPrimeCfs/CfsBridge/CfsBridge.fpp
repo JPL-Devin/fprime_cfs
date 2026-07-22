@@ -1,13 +1,12 @@
 module FPrimeCfs {
-    @ Bridge component between the cFS software bus (SB) and the F Prime framework. This component effectively peforms
-    @ the role of two software components:
-    @   1. A "Framer" framinng messages in cFS SB format
-    @   2. A "ComDriver" for sending and receiving messages over the cFS SB
+    @ Bridge component between the cFS software bus (SB) and the F Prime framework. This component performs the role
+    @ of a "ComDriver" at the space packet layer: it sends and receives complete CCSDS space packets over the cFS SB.
     @
-    @ Data provided to the bridge for transmission is in the standard form for F Prime applications i.e. unframed
-    @ F Prime packets (Fw::ComBuffer/Fw::Buffer). Data received from the software bus is emitted as the complete cFS
-    @ message (a CCSDS space packet) for deframing by a downstream deframer (e.g. Svc.Ccsds.SpacePacketDeframer)
-    @ before routing.
+    @ Data provided to the bridge for transmission is one or more complete CCSDS space packets (e.g. from an
+    @ Svc.Ccsds.SpacePacketFramer, possibly concatenated by an Svc.ComAggregator); each packet is transmitted on the
+    @ software bus as its own message. Data received from the software bus is emitted as the complete cFS message
+    @ (a CCSDS space packet) for deframing by a downstream deframer (e.g. Svc.Ccsds.SpacePacketDeframer) before
+    @ routing.
     @
     @    ------------------------------------
     @    | F Prime Application              |
@@ -47,16 +46,14 @@ module FPrimeCfs {
         @ Since the cFS bridge may be paired with a framer stack, it must accept com status signals
         sync input port comStatusIn: Fw.SuccessCondition
 
-        # The cFS bridge component also acts as a "Framer" in that it will frame incoming messages from the F Prime
-        # framework and send them out over the cFS software bus.
-        #
-        # Note: this is only a partial implementation of the Framer interface as it does not use F Prime for the
-        # sending of data.
+        # The cFS bridge component also acts as the sending "ComDriver": it transmits framed space packets from the
+        # F Prime framework out over the cFS software bus.
 
-        #### Framer Ports ####
+        #### Send Ports ####
 
-        @ Port to receive data to frame in a cFS message and send to the cFS software bus. The data will be in the F
-        @ Prime application layer message buffer.
+        @ Port to receive data to send to the cFS software bus. The data will be one or more complete CCSDS space
+        @ packets (e.g. from an Svc.Ccsds.SpacePacketFramer, possibly concatenated by an Svc.ComAggregator); each
+        @ packet is transmitted on the software bus as its own message.
         async input port dataIn: Svc.ComDataWithContext
 
         @ Port for returning ownership of the incoming Fw::Buffer to its sender once framing is handled. This completes

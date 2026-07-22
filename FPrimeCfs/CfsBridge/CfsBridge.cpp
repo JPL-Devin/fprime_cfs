@@ -5,7 +5,6 @@
 // ======================================================================
 
 #include "FPrimeCfs/CfsBridge/CfsBridge.hpp"
-#include "FPrimeCfs/CfsBridge/cfs_bridge_msgstruct.h"
 #include "Fw/Logger/Logger.hpp"
 #include <cstring>
 #include <limits>
@@ -17,8 +16,6 @@
 extern "C" {
     #include "cfe.h"
     #include "cfe_config.h"
-    #include "cfs_bridge_msgstruct.h"
-    #include "cfe_core_api_base_msgids.h"
     #include "cfe_sb.h"   // for CFE_SB_TransmitMsg
     #include "fprime_cfs_compatibility.h"
 }
@@ -77,19 +74,13 @@ CFE_Status_t CfsBridge ::subscribe(const ComCfg::Apid::T apid) {
 // ----------------------------------------------------------------------
 
 CFE_SB_MsgId_t CfsBridge ::getCfsMessageId(const ComCfg::Apid::T apid) {
-    // First convert the topic (APID) to a message ID value
-    U32 message_id = 0;
-    switch (apid) {
-        // Uplink entities are "commands"
-        case ComCfg::Apid::FW_PACKET_COMMAND:
-            message_id = CFE_PLATFORM_CMD_TOPICID_TO_MIDV(apid);
-            break;
-        // Everything else is "telemetry"
-        default:
-            message_id = CFE_PLATFORM_TLM_TOPICID_TO_MIDV(apid);
-            break;
+    // Messages on the software bus are complete CCSDS space packets, so message IDs mirror the
+    // space packet stream identifier: PVN 0, secondary header flag 0, APID in the low 11 bits, and
+    // the packet type bit set for commands (uplink) and clear for telemetry (downlink)
+    U32 message_id = static_cast<U32>(apid) & CFS_BRIDGE_SPACE_PACKET_APID_MASK;
+    if (apid == ComCfg::Apid::FW_PACKET_COMMAND) {
+        message_id |= CFS_BRIDGE_SPACE_PACKET_TYPE_MASK;
     }
-    // Then conver the message ID value to a CFE_SB_MsgId_t
     return CFE_SB_ValueToMsgId(message_id);
 }
 
@@ -126,42 +117,31 @@ void CfsBridge ::poll() {
 
 void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const ComCfg::FrameContext &context)
 {
-    FPRIME_FprimeMessage_t message;
-    ComCfg::Apid::T apid = context.get_apid();
-    size_t header_size = 0;
-    CFE_MSG_Message_t* message_pointer = nullptr;
-
-    switch (apid) {
-        // Uplink entities are "commands"
-        case ComCfg::Apid::FW_PACKET_COMMAND:
-            header_size = sizeof(CFE_MSG_CommandHeader_t);
-            message_pointer = reinterpret_cast<CFE_MSG_Message_t*>(&message.command);
+    // The incoming buffer contains one or more complete CCSDS space packets (e.g. from a space packet
+    // framer, or several concatenated by an aggregator). Each packet is transmitted on the software bus
+    // as its own message; the message ID is derived from the packet's stream identifier by cFS.
+    U8* const buffer_data = data.getData();
+    const FwSizeType buffer_size = data.getSize();
+    FwSizeType offset = 0;
+    while ((buffer_size - offset) >= CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE) {
+        // CCSDS packet data length field is the number of payload bytes minus one
+        const FwSizeType packet_size = CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1 +
+            ((static_cast<FwSizeType>(buffer_data[offset + 4]) << 8) | static_cast<FwSizeType>(buffer_data[offset + 5]));
+        if (packet_size > (buffer_size - offset)) {
+            Fw::Logger::log("[ERROR] Dropping truncated space packet: %" PRI_FwSizeType " bytes needed, %" PRI_FwSizeType " available\n",
+                            packet_size, buffer_size - offset);
             break;
-        // Everything else is "telemetry"
-        default:
-            header_size = sizeof(CFE_MSG_TelemetryHeader_t);
-            message_pointer = reinterpret_cast<CFE_MSG_Message_t*>(&message.telemetry);
-            break;
-    }
-
-    // First, check for overflows before attempting to create a cFS message that is too-large. Data too large for a
-    // cFS message is dropped with an error.
-    if (std::numeric_limits<CFE_MSG_Size_t>::max() - header_size >= data.getSize()) {
-        CFE_MSG_Size_t message_size = header_size + data.getSize();
-        CFE_SB_MsgId_t message_id = this->getCfsMessageId(apid);
-
-        // Initialize the cFS message with the appropriate header and size
-        CFE_Status_t status = CFE_MSG_Init(message_pointer, message_id, message_size);
-        if (status == CFE_SUCCESS) {
-            // Copy the message into the buffer for transmission
-            std::memcpy(reinterpret_cast<U8*>(message_pointer) + header_size, data.getData(), data.getSize());
-            status = CFE_SB_TransmitMsg(reinterpret_cast<CFE_MSG_Message_t*>(&message), this->m_incrementSequenceCount);
         }
+        CFE_MSG_Message_t* message_pointer = reinterpret_cast<CFE_MSG_Message_t*>(&buffer_data[offset]);
+        CFE_Status_t status = CFE_SB_TransmitMsg(message_pointer, false);
         if (status != CFE_SUCCESS) {
-            Fw::Logger::log("[ERROR] Failed to transmit message with APID 0x%04x to software bus: 0x%08x\n", apid, status);
+            Fw::Logger::log("[ERROR] Failed to transmit message to software bus: 0x%08x\n", status);
         }
-    } else {
-        Fw::Logger::log("[ERROR] Data with APID 0x%04x too large for a cFS message\n", apid);
+        offset += packet_size;
+    }
+    if (offset != buffer_size) {
+        Fw::Logger::log("[ERROR] Dropping %" PRI_FwSizeType " residual bytes not forming a complete space packet\n",
+                        buffer_size - offset);
     }
     // Ownership of the data is always returned to the sender, and com status always reports success as the software
     // bus does not support retries

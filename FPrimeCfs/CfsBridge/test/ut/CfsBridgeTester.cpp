@@ -10,8 +10,10 @@
 
 namespace FPrimeCfs {
 
-static const CFE_SB_MsgId_Atom_t CMD_MID_FOR_APID_0 = 0x1800;
-static const CFE_SB_MsgId_Atom_t TLM_MID_FOR_APID_1 = 0x0801;
+static const CFE_SB_MsgId_Atom_t CMD_MID_FOR_APID_0 = 0x1000;  // Space packet stream id: command type bit + APID 0
+static const CFE_SB_MsgId_Atom_t TLM_MID_FOR_APID_1 = 0x0001;  // Space packet stream id: telemetry, APID 1
+
+static const FwSizeType HEADER_SIZE = CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE;
 
 // ----------------------------------------------------------------------
 // Construction and destruction
@@ -37,12 +39,22 @@ void CfsBridgeTester ::configureAndSubscribe(ComCfg::Apid::T apid, bool paused) 
     ASSERT_EQ(this->component.subscribe(apid), CFE_SUCCESS);
 }
 
-void CfsBridgeTester ::fillRandom(Fw::Buffer& buffer, FwSizeType maxSize) {
-    FwSizeType size = static_cast<FwSizeType>(STest::Pick::lowerUpper(1, static_cast<U32>(maxSize)));
+FwSizeType CfsBridgeTester ::makePacket(U8* dest, U16 streamIdValue, const U8* payload, FwSizeType payloadSize) {
+    dest[0] = static_cast<U8>((streamIdValue >> 8) & 0xFF);
+    dest[1] = static_cast<U8>(streamIdValue & 0xFF);
+    dest[2] = 0xC0;  // Sequence flags: unsegmented user data
+    dest[3] = 0x00;
+    FwSizeType lengthToken = payloadSize - 1;
+    dest[4] = static_cast<U8>((lengthToken >> 8) & 0xFF);
+    dest[5] = static_cast<U8>(lengthToken & 0xFF);
+    (void)std::memcpy(&dest[HEADER_SIZE], payload, payloadSize);
+    return HEADER_SIZE + payloadSize;
+}
+
+void CfsBridgeTester ::fillRandom(U8* data, FwSizeType size) {
     for (FwSizeType i = 0; i < size; i++) {
-        buffer.getData()[i] = static_cast<U8>(STest::Pick::any());
+        data[i] = static_cast<U8>(STest::Pick::any());
     }
-    buffer.setSize(size);
 }
 
 void CfsBridgeTester ::sendDataIn(Fw::Buffer& buffer, const ComCfg::FrameContext& context) {
@@ -60,21 +72,22 @@ void CfsBridgeTester ::sendDataIn(Fw::Buffer& buffer, const ComCfg::FrameContext
 
 void CfsBridgeTester ::receiveMessage(ComCfg::Apid::T apid, const U8* payload, FwSizeType size) {
     CFE_SB_MsgId_Atom_t msgIdValue =
-        (apid == ComCfg::Apid::FW_PACKET_COMMAND) ? (0x1800 | apid) : (0x0800 | apid);
+        (apid == ComCfg::Apid::FW_PACKET_COMMAND) ? (0x1000 | apid) : apid;
     CfeStub::queueMessage(msgIdValue, payload, size);
     ASSERT_NE(this->component.process(), Fw::QueuedComponentBase::MSG_DISPATCH_EXIT);
 }
 
 void CfsBridgeTester ::assertTransmitted(U32 index,
                                          CFE_SB_MsgId_Atom_t expectedMsgId,
-                                         FwSizeType expectedHeaderSize,
-                                         const Fw::Buffer& expectedPayload) {
+                                         const U8* expectedPayload,
+                                         FwSizeType expectedPayloadSize) {
     ASSERT_GT(CfeStub::state().transmitCount, index);
     const CfeStub::TransmitCall& call = CfeStub::state().transmitCalls[index];
     ASSERT_EQ(call.msgIdValue, expectedMsgId);
-    ASSERT_EQ(call.totalSize, expectedHeaderSize + expectedPayload.getSize());
-    ASSERT_EQ(call.payloadSize, expectedPayload.getSize());
-    ASSERT_EQ(std::memcmp(call.payload, expectedPayload.getData(), expectedPayload.getSize()), 0);
+    ASSERT_EQ(call.totalSize, HEADER_SIZE + expectedPayloadSize);
+    ASSERT_EQ(call.payloadSize, expectedPayloadSize);
+    ASSERT_EQ(std::memcmp(call.payload, expectedPayload, expectedPayloadSize), 0);
+    ASSERT_FALSE(call.incrementSequenceCount);
 }
 
 // ----------------------------------------------------------------------
@@ -98,11 +111,11 @@ void CfsBridgeTester ::testConfigureFailure() {
 
 void CfsBridgeTester ::testSubscribe() {
     ASSERT_EQ(this->component.configure(10, "TEST_PIPE"), CFE_SUCCESS);
-    // Command APIDs map into the platform command message id space
+    // Command APIDs map to a stream identifier with the command type bit set
     ASSERT_EQ(this->component.subscribe(ComCfg::Apid::FW_PACKET_COMMAND), CFE_SUCCESS);
     ASSERT_EQ(CfeStub::state().subscribeCount, 1u);
     ASSERT_EQ(CfeStub::state().subscribeCalls[0].msgIdValue, CMD_MID_FOR_APID_0);
-    // All other APIDs map into the platform telemetry message id space
+    // All other APIDs map to a telemetry (type bit clear) stream identifier
     ASSERT_EQ(this->component.subscribe(ComCfg::Apid::FW_PACKET_TELEM), CFE_SUCCESS);
     ASSERT_EQ(CfeStub::state().subscribeCount, 2u);
     ASSERT_EQ(CfeStub::state().subscribeCalls[1].msgIdValue, TLM_MID_FOR_APID_1);
@@ -118,57 +131,82 @@ void CfsBridgeTester ::testSubscribeFailure() {
 }
 
 // ----------------------------------------------------------------------
-// Tests: framing (dataIn -> software bus)
+// Tests: transmit (dataIn -> software bus)
 // ----------------------------------------------------------------------
 
-void CfsBridgeTester ::testFrameCommand() {
+void CfsBridgeTester ::testTransmitSinglePacket() {
+    U8 payload[32];
+    this->fillRandom(payload, sizeof(payload));
     U8 storage[64];
     Fw::Buffer buffer(storage, sizeof(storage));
-    this->fillRandom(buffer, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, CMD_MID_FOR_APID_0, payload, sizeof(payload)));
     ComCfg::FrameContext context;
-    context.set_apid(ComCfg::Apid::FW_PACKET_COMMAND);
 
     this->sendDataIn(buffer, context);
     ASSERT_EQ(CfeStub::state().transmitCount, 1u);
-    this->assertTransmitted(0, CMD_MID_FOR_APID_0, sizeof(CFE_MSG_CommandHeader_t), buffer);
+    this->assertTransmitted(0, CMD_MID_FOR_APID_0, payload, sizeof(payload));
 }
 
-void CfsBridgeTester ::testFrameTelemetry() {
-    U8 storage[64];
+void CfsBridgeTester ::testTransmitMultiplePackets() {
+    U8 payloadOne[16];
+    U8 payloadTwo[24];
+    this->fillRandom(payloadOne, sizeof(payloadOne));
+    this->fillRandom(payloadTwo, sizeof(payloadTwo));
+    U8 storage[128];
+    FwSizeType sizeOne = this->makePacket(storage, TLM_MID_FOR_APID_1, payloadOne, sizeof(payloadOne));
+    FwSizeType sizeTwo = this->makePacket(&storage[sizeOne], 0x0002, payloadTwo, sizeof(payloadTwo));
     Fw::Buffer buffer(storage, sizeof(storage));
-    this->fillRandom(buffer, sizeof(storage));
+    buffer.setSize(sizeOne + sizeTwo);
     ComCfg::FrameContext context;
-    context.set_apid(ComCfg::Apid::FW_PACKET_TELEM);
 
     this->sendDataIn(buffer, context);
-    ASSERT_EQ(CfeStub::state().transmitCount, 1u);
-    this->assertTransmitted(0, TLM_MID_FOR_APID_1, sizeof(CFE_MSG_TelemetryHeader_t), buffer);
+    ASSERT_EQ(CfeStub::state().transmitCount, 2u);
+    this->assertTransmitted(0, TLM_MID_FOR_APID_1, payloadOne, sizeof(payloadOne));
+    this->assertTransmitted(1, 0x0002, payloadTwo, sizeof(payloadTwo));
 }
 
-void CfsBridgeTester ::testFrameInitFailure() {
+void CfsBridgeTester ::testTransmitFailure() {
+    U8 payload[16];
+    this->fillRandom(payload, sizeof(payload));
     U8 storage[64];
     Fw::Buffer buffer(storage, sizeof(storage));
-    this->fillRandom(buffer, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, TLM_MID_FOR_APID_1, payload, sizeof(payload)));
     ComCfg::FrameContext context;
-    context.set_apid(ComCfg::Apid::FW_PACKET_TELEM);
-
-    CfeStub::state().msgInitStatus = CFE_SB_BAD_ARGUMENT;
-    // Buffer return and com status are still emitted on failure
-    this->sendDataIn(buffer, context);
-    ASSERT_EQ(CfeStub::state().transmitCount, 0u);
-}
-
-void CfsBridgeTester ::testFrameTransmitFailure() {
-    U8 storage[64];
-    Fw::Buffer buffer(storage, sizeof(storage));
-    this->fillRandom(buffer, sizeof(storage));
-    ComCfg::FrameContext context;
-    context.set_apid(ComCfg::Apid::FW_PACKET_TELEM);
 
     CfeStub::state().transmitStatus = CFE_SB_BAD_ARGUMENT;
     // Buffer return and com status are still emitted on failure
     this->sendDataIn(buffer, context);
     ASSERT_EQ(CfeStub::state().transmitCount, 1u);
+}
+
+void CfsBridgeTester ::testTransmitTruncated() {
+    U8 payload[32];
+    this->fillRandom(payload, sizeof(payload));
+    U8 storage[64];
+    Fw::Buffer buffer(storage, sizeof(storage));
+    FwSizeType packetSize = this->makePacket(storage, TLM_MID_FOR_APID_1, payload, sizeof(payload));
+    // Truncate the buffer so the packet length field exceeds the available data
+    buffer.setSize(packetSize - 4);
+    ComCfg::FrameContext context;
+
+    // Buffer return and com status are still emitted; nothing is transmitted
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 0u);
+}
+
+void CfsBridgeTester ::testTransmitResidual() {
+    U8 payload[16];
+    this->fillRandom(payload, sizeof(payload));
+    U8 storage[64];
+    FwSizeType packetSize = this->makePacket(storage, TLM_MID_FOR_APID_1, payload, sizeof(payload));
+    Fw::Buffer buffer(storage, sizeof(storage));
+    // Trailing bytes too small to form a primary header are dropped
+    buffer.setSize(packetSize + 3);
+    ComCfg::FrameContext context;
+
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 1u);
+    this->assertTransmitted(0, TLM_MID_FOR_APID_1, payload, sizeof(payload));
 }
 
 // ----------------------------------------------------------------------
@@ -179,9 +217,7 @@ void CfsBridgeTester ::testReceive() {
     this->configureAndSubscribe(ComCfg::Apid::FW_PACKET_COMMAND);
 
     U8 payload[32];
-    for (FwSizeType i = 0; i < sizeof(payload); i++) {
-        payload[i] = static_cast<U8>(STest::Pick::any());
-    }
+    this->fillRandom(payload, sizeof(payload));
     this->clearHistory();
     this->receiveMessage(ComCfg::Apid::FW_PACKET_COMMAND, payload, sizeof(payload));
 
@@ -189,8 +225,8 @@ void CfsBridgeTester ::testReceive() {
     ASSERT_from_dataOut_SIZE(1);
     const Fw::Buffer& outBuffer = this->fromPortHistory_dataOut->at(0).data;
     const ComCfg::FrameContext& outContext = this->fromPortHistory_dataOut->at(0).context;
-    ASSERT_EQ(outBuffer.getSize(), sizeof(CFE_MSG_CommandHeader_t) + sizeof(payload));
-    ASSERT_EQ(std::memcmp(outBuffer.getData() + sizeof(CFE_MSG_CommandHeader_t), payload, sizeof(payload)), 0);
+    ASSERT_EQ(outBuffer.getSize(), HEADER_SIZE + sizeof(payload));
+    ASSERT_EQ(std::memcmp(outBuffer.getData() + HEADER_SIZE, payload, sizeof(payload)), 0);
     ComCfg::FrameContext defaultContext;
     ASSERT_EQ(outContext, defaultContext);
 }
@@ -236,27 +272,13 @@ void CfsBridgeTester ::testReceiveGetSizeFailure() {
     ASSERT_from_dataOut_SIZE(0);
 }
 
-void CfsBridgeTester ::testFrameOversize() {
-    U8 storage[8] = {0};
-    // A buffer whose reported size cannot fit in a cFS message alongside the header
-    Fw::Buffer buffer(storage, std::numeric_limits<FwSizeType>::max());
-    ComCfg::FrameContext context;
-    context.set_apid(ComCfg::Apid::FW_PACKET_TELEM);
-
-    // Buffer return and com status are still emitted; nothing is transmitted
-    this->sendDataIn(buffer, context);
-    ASSERT_EQ(CfeStub::state().transmitCount, 0u);
-}
-
 void CfsBridgeTester ::testFlowControl() {
     this->configureAndSubscribe(ComCfg::Apid::FW_PACKET_COMMAND, true);
 
     U8 payloadOne[8];
     U8 payloadTwo[8];
-    for (FwSizeType i = 0; i < sizeof(payloadOne); i++) {
-        payloadOne[i] = static_cast<U8>(STest::Pick::any());
-        payloadTwo[i] = static_cast<U8>(STest::Pick::any());
-    }
+    this->fillRandom(payloadOne, sizeof(payloadOne));
+    this->fillRandom(payloadTwo, sizeof(payloadTwo));
     CfeStub::queueMessage(CMD_MID_FOR_APID_0, payloadOne, sizeof(payloadOne));
     CfeStub::queueMessage(CMD_MID_FOR_APID_0, payloadTwo, sizeof(payloadTwo));
 
@@ -270,7 +292,7 @@ void CfsBridgeTester ::testFlowControl() {
     this->invoke_to_comStatusIn(0, success);
     ASSERT_NE(this->component.process(), Fw::QueuedComponentBase::MSG_DISPATCH_EXIT);
     ASSERT_from_dataOut_SIZE(1);
-    ASSERT_EQ(std::memcmp(this->fromPortHistory_dataOut->at(0).data.getData() + sizeof(CFE_MSG_CommandHeader_t),
+    ASSERT_EQ(std::memcmp(this->fromPortHistory_dataOut->at(0).data.getData() + HEADER_SIZE,
                           payloadOne, sizeof(payloadOne)), 0);
     ASSERT_NE(this->component.process(), Fw::QueuedComponentBase::MSG_DISPATCH_EXIT);
     ASSERT_from_dataOut_SIZE(1);
@@ -285,7 +307,7 @@ void CfsBridgeTester ::testFlowControl() {
     this->invoke_to_comStatusIn(0, success);
     ASSERT_NE(this->component.process(), Fw::QueuedComponentBase::MSG_DISPATCH_EXIT);
     ASSERT_from_dataOut_SIZE(2);
-    ASSERT_EQ(std::memcmp(this->fromPortHistory_dataOut->at(1).data.getData() + sizeof(CFE_MSG_CommandHeader_t),
+    ASSERT_EQ(std::memcmp(this->fromPortHistory_dataOut->at(1).data.getData() + HEADER_SIZE,
                           payloadTwo, sizeof(payloadTwo)), 0);
 }
 
@@ -317,9 +339,7 @@ void CfsBridgeTester ::testRandomized() {
         switch (STest::Pick::lowerUpper(0, 3)) {
             case 0: {  // Queue a software bus message
                 if (pending < CfeStub::STUB_MAX_ENTRIES) {
-                    for (FwSizeType i = 0; i < sizeof(payload); i++) {
-                        payload[i] = static_cast<U8>(STest::Pick::any());
-                    }
+                    this->fillRandom(payload, sizeof(payload));
                     CfeStub::queueMessage(CMD_MID_FOR_APID_0, payload, sizeof(payload));
                     pending++;
                 }
@@ -345,11 +365,11 @@ void CfsBridgeTester ::testRandomized() {
                 paused = false;
                 break;
             }
-            default: {  // Frame data out to the software bus
+            default: {  // Transmit a space packet out to the software bus
+                this->fillRandom(payload, sizeof(payload));
                 Fw::Buffer buffer(storage, sizeof(storage));
-                this->fillRandom(buffer, sizeof(storage));
+                buffer.setSize(this->makePacket(storage, TLM_MID_FOR_APID_1, payload, sizeof(payload)));
                 ComCfg::FrameContext context;
-                context.set_apid(ComCfg::Apid::FW_PACKET_TELEM);
                 this->invoke_to_dataIn(0, buffer, context);
                 ASSERT_NE(this->component.process(), Fw::QueuedComponentBase::MSG_DISPATCH_EXIT);
                 ASSERT_from_dataReturnOut_SIZE(1);
