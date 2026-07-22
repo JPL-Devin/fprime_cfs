@@ -1,7 +1,7 @@
-# CI for the fprime_cfs library:
+# CI for the fprime_cfs library. Both jobs check out fprime_cfs_reference and overlay
+# this revision of fprime_cfs into it via fprime-actions/external-repository-setup:
 #   1. Build and run the unit tests for all fprime_cfs components
-#   2. Build the fprime_cfs_reference external project with this revision of fprime_cfs
-#      and run its GDS integration tests
+#   2. Build the fprime_cfs_reference external project and run its GDS integration tests
 
 name: "CI"
 
@@ -23,17 +23,16 @@ jobs:
     name: "Unit Tests"
     runs-on: ubuntu-22.04
     steps:
-      - name: "Checkout fprime_cfs"
-        uses: actions/checkout@v4
-      - name: "Checkout F´"
-        run: git clone --depth 1 --branch devel --recurse-submodules https://github.com/nasa/fprime.git ../fprime
-      - name: "Setup F´ environment"
-        uses: nasa/fprime-actions/setup@devel
+      - name: "Setup fprime_cfs_reference with fprime_cfs overlay"
+        uses: nasa/fprime-actions/external-repository-setup@devel
         with:
-          location: ../fprime
+          target_repository: fprime-community/fprime_cfs_reference
+          fprime_location: ./libs/fprime
+          overlay_location: ./libs/fprime_cfs
       - name: "Build and Run Unit Tests"
         uses: nasa/fprime-actions/run-unit-tests@devel
         with:
+          working-directory: libs/fprime_cfs
           generate-args: "-DFPRIME_ENABLE_FRAMEWORK_UTS=OFF"
 
   reference-build-and-test:
@@ -42,20 +41,12 @@ jobs:
     steps:
       - name: "Make Space"
         uses: nasa/fprime-actions/make-space@devel
-      - name: "Checkout fprime_cfs_reference"
-        uses: actions/checkout@v4
+      - name: "Setup fprime_cfs_reference with fprime_cfs overlay"
+        uses: nasa/fprime-actions/external-repository-setup@devel
         with:
-          repository: fprime-community/fprime_cfs_reference
-          ref: devel
-          submodules: recursive
-      - name: "Overlay current fprime_cfs revision"
-        uses: actions/checkout@v4
-        with:
-          path: libs/fprime_cfs
-      - name: "Setup F´ environment"
-        uses: nasa/fprime-actions/setup@devel
-        with:
-          location: ./libs/fprime
+          target_repository: fprime-community/fprime_cfs_reference
+          fprime_location: ./libs/fprime
+          overlay_location: ./libs/fprime_cfs
       - name: "Build"
         run: |
           make SIMULATION=native prep
