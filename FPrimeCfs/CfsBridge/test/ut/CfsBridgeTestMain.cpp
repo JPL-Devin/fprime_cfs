@@ -63,11 +63,11 @@ TEST(OffNominal, FrameTransmitFailure) {
     tester.testFrameTransmitFailure();
 }
 
-TEST(Nominal, Deframe) {
-    COMMENT("Received software bus messages are deframed and sent out dataOut with the APID context");
+TEST(Nominal, Receive) {
+    COMMENT("Received software bus messages are sent whole out dataOut with a default context");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframe();
+    tester.testReceive();
 }
 
 TEST(Nominal, Preroll) {
@@ -77,32 +77,25 @@ TEST(Nominal, Preroll) {
     tester.testPreroll();
 }
 
-TEST(OffNominal, DeframeInvalidApid) {
-    COMMENT("Messages with ids that do not map to a valid APID are dropped");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeInvalidApid();
-}
-
-TEST(Nominal, DeframeNoMessage) {
+TEST(Nominal, ReceiveNoMessage) {
     COMMENT("Empty software bus polls produce no output");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeNoMessage();
+    tester.testReceiveNoMessage();
 }
 
-TEST(OffNominal, DeframeReceiveError) {
+TEST(OffNominal, ReceiveError) {
     COMMENT("Software bus receive errors produce no output");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeReceiveError();
+    tester.testReceiveError();
 }
 
-TEST(OffNominal, DeframeGetMsgIdFailure) {
-    COMMENT("Messages whose id cannot be read are dropped");
+TEST(OffNominal, ReceiveGetSizeFailure) {
+    COMMENT("Messages whose size cannot be read are dropped");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeGetMsgIdFailure();
+    tester.testReceiveGetSizeFailure();
 }
 
 TEST(OffNominal, FrameOversize) {
@@ -113,7 +106,7 @@ TEST(OffNominal, FrameOversize) {
 }
 
 TEST(Nominal, FlowControl) {
-    COMMENT("Flow control gates deframed messages on comStatusIn signals");
+    COMMENT("Flow control gates received messages on comStatusIn signals");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-007");
     FPrimeCfs::CfsBridgeTester tester;
     tester.testFlowControl();

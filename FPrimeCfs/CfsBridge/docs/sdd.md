@@ -2,9 +2,9 @@
 
 Bridge F Prime communication constructs to and from the cFS Software Bus (SB). `CfsBridge` acts as the
 boundary between an F Prime communication stack and cFS: it *frames* outgoing F Prime data into cFS
-messages and transmits them on the software bus, and it *deframes* incoming cFS messages into F Prime
-buffers annotated with their APID. In F Prime terms it fills the combined role of a framer, a deframer,
-and a communication driver.
+messages and transmits them on the software bus, and it emits incoming cFS messages whole (as CCSDS
+space packets) for deframing by a downstream deframer (e.g. `Svc::Ccsds::SpacePacketDeframer`). In
+F Prime terms it fills the combined role of a framer and a communication driver.
 
 `CfsBridge` is a **queued** component: incoming F Prime port calls on `dataIn` are queued, and the
 hosting cFS application drives the component by calling `process()` from its run loop. Each `process()`
@@ -30,17 +30,17 @@ while (CFE_ES_RunLoop(&runStatus)) {
 }
 ```
 
-When `paused` is true, flow control is enabled: deframed messages are held until a `comStatusIn`
+When `paused` is true, flow control is enabled: received messages are held until a `comStatusIn`
 success signal is received, and one message is released per success signal. This paces uplink data to
-match the downstream pipeline (e.g. an `Svc::FprimeRouter`/`Svc::ComQueue` stack).
+match the downstream pipeline (e.g. a deframer/router stack).
 
 ## Port Descriptions
 
 | Kind | Name | Type | Description |
 |---|---|---|---|
-| output | `dataOut` | `Svc.ComDataWithContext` | Deframed data (payload of a received SB message) with the APID in the context |
+| output | `dataOut` | `Svc.ComDataWithContext` | Complete received SB message (a CCSDS space packet including headers) with a default context |
 | sync input | `dataReturnIn` | `Svc.ComDataWithContext` | Return of ownership for buffers sent on `dataOut` (no-op: SB owns its buffers) |
-| sync input | `comStatusIn` | `Fw.SuccessCondition` | Downstream com status; a SUCCESS unpauses one deframed message when flow control is enabled |
+| sync input | `comStatusIn` | `Fw.SuccessCondition` | Downstream com status; a SUCCESS unpauses one received message when flow control is enabled |
 | async input | `dataIn` | `Svc.ComDataWithContext` | F Prime data to frame into a cFS message and transmit on the SB |
 | output | `dataReturnOut` | `Svc.ComDataWithContext` | Return of ownership for buffers received on `dataIn` |
 | output | `comStatusOut` | `Fw.SuccessCondition` | Com status emitted after each transmission attempt, and once as a preroll |
@@ -53,8 +53,8 @@ match the downstream pipeline (e.g. an `Svc::FprimeRouter`/`Svc::ComQueue` stack
 | FPRIMECFS-CFSBRIDGE-002 | `CfsBridge` shall subscribe to the software bus message ID derived from the supplied APID when `subscribe()` is called, mapping `FW_PACKET_COMMAND` into the platform command message ID space and all other APIDs into the platform telemetry message ID space | Unit test |
 | FPRIMECFS-CFSBRIDGE-003 | `CfsBridge` shall frame each buffer received on `dataIn` into a cFS message (command header for `FW_PACKET_COMMAND`, telemetry header otherwise) and transmit it on the software bus | Unit test |
 | FPRIMECFS-CFSBRIDGE-004 | `CfsBridge` shall drop `dataIn` data that cannot be transmitted (oversize data, message initialization failure, or transmission failure) and log an error, without asserting | Unit test |
-| FPRIMECFS-CFSBRIDGE-005 | `CfsBridge` shall poll the software bus pipe during `process()` and emit each received message's payload on `dataOut` with the message's APID set in the frame context | Unit test |
-| FPRIMECFS-CFSBRIDGE-006 | `CfsBridge` shall drop received software bus messages whose message ID cannot be read or does not map to a valid APID, logging an error, without asserting | Unit test |
+| FPRIMECFS-CFSBRIDGE-005 | `CfsBridge` shall poll the software bus pipe during `process()` and emit each received message whole (headers included) on `dataOut` with a default frame context | Unit test |
+| FPRIMECFS-CFSBRIDGE-006 | `CfsBridge` shall drop received software bus messages whose size cannot be read, logging an error, without asserting | Unit test |
 | FPRIMECFS-CFSBRIDGE-007 | When configured with flow control enabled, `CfsBridge` shall hold received messages while paused and shall release exactly one message per `comStatusIn` SUCCESS signal | Unit test |
 | FPRIMECFS-CFSBRIDGE-008 | `CfsBridge` shall emit a single `comStatusOut` SUCCESS (preroll) on the first `process()` call after subscription to open the downstream communication pipeline | Unit test |
 | FPRIMECFS-CFSBRIDGE-009 | `CfsBridge` shall return ownership of every buffer received on `dataIn` via `dataReturnOut` and shall emit a `comStatusOut` SUCCESS after every transmission attempt, regardless of outcome | Unit test |
@@ -70,18 +70,18 @@ payload behind the header, and transmits with `CFE_SB_TransmitMsg()`. Ownership 
 is always returned via `dataReturnOut` and `comStatusOut` always reports SUCCESS, since the software
 bus does not support retry semantics.
 
-### Deframing (cFS → F Prime)
+### Receiving (cFS → F Prime)
 
 `process()` polls the pipe with `CFE_SB_ReceiveBuffer(..., CFE_SB_POLL)` (at most one message per
-call). The payload pointer and length are obtained from `CFE_SB_GetUserData()`/
-`CFE_SB_GetUserDataLength()` and wrapped in an `Fw::Buffer` that aliases the SB buffer — no copy is
-performed, which is safe because SB buffers remain valid until the next `CFE_SB_ReceiveBuffer()` call
-on the pipe and the downstream consumers of `dataOut` operate synchronously within `process()`.
-`dataReturnIn` is therefore a no-op.
+call). The complete message pointer and its length (from `CFE_MSG_GetSize()`) are wrapped in an
+`Fw::Buffer` that aliases the SB buffer — no copy is performed, which is safe because SB buffers
+remain valid until the next `CFE_SB_ReceiveBuffer()` call on the pipe and the downstream consumers of
+`dataOut` operate synchronously within `process()`. `dataReturnIn` is therefore a no-op.
 
-The APID is recovered by masking the message ID value (there is no inverse of the
-`CFE_PLATFORM_*_TOPICID_TO_MIDV` macros). Since software bus messages are external input, a message ID
-that fails this round-trip mapping is dropped with a logged error rather than asserted upon.
+The message is a CCSDS space packet: it is emitted whole with a default frame context so that a
+downstream deframer (e.g. `Svc::Ccsds::SpacePacketDeframer`) can validate the primary header and
+derive the APID and secondary-header presence. Since software bus messages are external input, a
+message whose size cannot be read is dropped with a logged error rather than asserted upon.
 
 ### Flow control
 
@@ -112,3 +112,4 @@ Coverage: 100% lines, 100% functions.
 | Date | Description |
 |---|---|
 | 2026-07-22 | Initial SDD with requirements and unit tests |
+| 2026-07-22 | Emit received messages whole (space packets) for downstream deframing instead of deframing internally |

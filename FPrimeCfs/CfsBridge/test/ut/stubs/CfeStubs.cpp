@@ -20,7 +20,7 @@ void reset() {
     s_state.subscribeStatus = CFE_SUCCESS;
     s_state.transmitStatus = CFE_SUCCESS;
     s_state.msgInitStatus = CFE_SUCCESS;
-    s_state.getMsgIdStatus = CFE_SUCCESS;
+    s_state.getSizeStatus = CFE_SUCCESS;
     s_state.receiveStatus = CFE_SUCCESS;
 }
 
@@ -118,15 +118,6 @@ CFE_Status_t CFE_SB_TransmitMsg(const CFE_MSG_Message_t* msgPtr, bool incrementS
     return s.transmitStatus;
 }
 
-void* CFE_SB_GetUserData(CFE_MSG_Message_t* msgPtr) {
-    return reinterpret_cast<uint8*>(msgPtr) + CfeStub::headerSize(msgPtr->MsgId);
-}
-
-size_t CFE_SB_GetUserDataLength(const CFE_MSG_Message_t* msgPtr) {
-    size_t header = CfeStub::headerSize(msgPtr->MsgId);
-    return (msgPtr->Size > header) ? (msgPtr->Size - header) : 0;
-}
-
 CFE_Status_t CFE_MSG_Init(CFE_MSG_Message_t* msgPtr, CFE_SB_MsgId_t msgId, CFE_MSG_Size_t size) {
     CfeStub::State& s = CfeStub::s_state;
     if (s.msgInitStatus == CFE_SUCCESS && msgPtr != nullptr) {
@@ -136,12 +127,12 @@ CFE_Status_t CFE_MSG_Init(CFE_MSG_Message_t* msgPtr, CFE_SB_MsgId_t msgId, CFE_M
     return s.msgInitStatus;
 }
 
-CFE_Status_t CFE_MSG_GetMsgId(const CFE_MSG_Message_t* msgPtr, CFE_SB_MsgId_t* msgId) {
+CFE_Status_t CFE_MSG_GetSize(const CFE_MSG_Message_t* msgPtr, CFE_MSG_Size_t* size) {
     CfeStub::State& s = CfeStub::s_state;
-    if (s.getMsgIdStatus == CFE_SUCCESS && msgPtr != nullptr && msgId != nullptr) {
-        msgId->Value = msgPtr->MsgId;
+    if (s.getSizeStatus == CFE_SUCCESS && msgPtr != nullptr && size != nullptr) {
+        *size = msgPtr->Size;
     }
-    return s.getMsgIdStatus;
+    return s.getSizeStatus;
 }
 
 }  // extern "C"
