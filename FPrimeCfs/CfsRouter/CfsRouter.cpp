@@ -12,16 +12,9 @@ namespace FPrimeCfs {
 // Component construction and destruction
 // ----------------------------------------------------------------------
 
-CfsRouter ::CfsRouter(const char* const compName)
-    : CfsRouterComponentBase(compName), m_table(nullptr), m_entries(0) {}
+CfsRouter ::CfsRouter(const char* const compName) : CfsRouterComponentBase(compName) {}
 
 CfsRouter ::~CfsRouter() {}
-
-void CfsRouter ::configure(const CfsRouteEntry* table, FwSizeType entries) {
-    FW_ASSERT((table != nullptr) || (entries == 0));
-    this->m_table = table;
-    this->m_entries = entries;
-}
 
 // ----------------------------------------------------------------------
 // Handler implementations for typed input ports
@@ -33,7 +26,7 @@ void CfsRouter ::dataIn_handler(FwIndexType portNum, Fw::Buffer& data, const Com
         this->routeUnknown(data, context);
         return;
     }
-    switch (route->type) {
+    switch (route->get_routeType()) {
         case CfsRouteType::FPRIME_COMMAND:
             this->routeFprimeCommand(*route, data, context);
             break;
@@ -44,7 +37,7 @@ void CfsRouter ::dataIn_handler(FwIndexType portNum, Fw::Buffer& data, const Com
             this->routeCfsTelemetry(*route, data, context);
             break;
         default:
-            FW_ASSERT(0, static_cast<FwAssertArgType>(route->type));
+            FW_ASSERT(0, static_cast<FwAssertArgType>(route->get_routeType()));
             break;
     }
 }
@@ -58,8 +51,11 @@ void CfsRouter ::cmdResponseIn_handler(FwIndexType portNum,
 
 void CfsRouter ::bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) {
     // Ownership of a buffer sent on cfsCommandOut, cfsTelemetryOut, or unknownDataOut
-    // has been returned; complete the transfer back to the deframer
-    this->returnData(fwBuffer);
+    // has been returned; complete the transfer back to the deframer with the context
+    // the data was originally received with
+    ComCfg::FrameContext context;
+    (void)this->m_pending.remove(fwBuffer.getData(), context);
+    this->returnData(fwBuffer, context);
 }
 
 // ----------------------------------------------------------------------
@@ -67,17 +63,25 @@ void CfsRouter ::bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffe
 // ----------------------------------------------------------------------
 
 const CfsRouteEntry* CfsRouter ::findRoute(ComCfg::Apid::T apid) const {
-    for (FwSizeType i = 0; i < this->m_entries; i++) {
-        if (this->m_table[i].apid == apid) {
-            return &this->m_table[i];
+    for (FwSizeType i = 0; i < CfsRouter_CfsRouteTable::SIZE; i++) {
+        if (this->m_routes[i].get_apid() == apid) {
+            return &this->m_routes[i];
         }
     }
     return nullptr;
 }
 
-void CfsRouter ::returnData(Fw::Buffer& data) {
-    ComCfg::FrameContext emptyContext;
-    this->dataReturnOut_out(0, data, emptyContext);
+void CfsRouter ::returnData(Fw::Buffer& data, const ComCfg::FrameContext& context) {
+    this->dataReturnOut_out(0, data, context);
+}
+
+bool CfsRouter ::trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context) {
+    const Fw::Success status = this->m_pending.insert(buffer.getData(), context);
+    if (status != Fw::Success::SUCCESS) {
+        this->log_WARNING_HI_TooManyPendingBuffers(static_cast<U16>(context.get_apid()));
+        return false;
+    }
+    return true;
 }
 
 void CfsRouter ::routeFprimeCommand(const CfsRouteEntry& route,
@@ -86,11 +90,12 @@ void CfsRouter ::routeFprimeCommand(const CfsRouteEntry& route,
     // A cFS-framed F Prime command carries the cFS command secondary header ahead of
     // the F Prime command data; exclude it from the copy when present
     const FwSizeType offset = context.get_hasSecHdr() ? CFS_ROUTER_CMD_SEC_HDR_SIZE : 0;
-    if ((data.getSize() >= offset) && this->isConnected_commandOut_OutputPort(route.index)) {
+    const FwIndexType index = route.get_portIndex();
+    if ((data.getSize() >= offset) && this->isConnected_commandOut_OutputPort(index)) {
         Fw::ComBuffer com;
         const Fw::SerializeStatus status = com.setBuff(data.getData() + offset, data.getSize() - offset);
         if (status == Fw::FW_SERIALIZE_OK) {
-            this->commandOut_out(route.index, com, 0);
+            this->commandOut_out(index, com, 0);
         } else {
             this->log_WARNING_HI_SerializationError(static_cast<U32>(status));
         }
@@ -99,7 +104,7 @@ void CfsRouter ::routeFprimeCommand(const CfsRouteEntry& route,
                                                     static_cast<U32>(data.getSize()));
     }
     // The F Prime command route copies: ownership returns to the sender immediately
-    this->returnData(data);
+    this->returnData(data, context);
 }
 
 void CfsRouter ::routeCfsCommand(const CfsRouteEntry& route, Fw::Buffer& data, const ComCfg::FrameContext& context) {
@@ -109,15 +114,20 @@ void CfsRouter ::routeCfsCommand(const CfsRouteEntry& route, Fw::Buffer& data, c
         this->routeUnknown(data, context);
         return;
     }
-    if (!this->isConnected_cfsCommandOut_OutputPort(route.index)) {
-        this->returnData(data);
+    const FwIndexType index = route.get_portIndex();
+    if (!this->isConnected_cfsCommandOut_OutputPort(index)) {
+        this->returnData(data, context);
         return;
     }
     const U8 functionCode = data.getData()[0];
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_ROUTER_CMD_SEC_HDR_SIZE, data.getSize() - CFS_ROUTER_CMD_SEC_HDR_SIZE);
-    this->cfsCommandOut_out(route.index, functionCode, payload);
+    if (this->trackPending(payload, context)) {
+        this->cfsCommandOut_out(index, functionCode, payload);
+    } else {
+        this->returnData(data, context);
+    }
 }
 
 void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data, const ComCfg::FrameContext& context) {
@@ -127,8 +137,9 @@ void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data,
         this->routeUnknown(data, context);
         return;
     }
-    if (!this->isConnected_cfsTelemetryOut_OutputPort(route.index)) {
-        this->returnData(data);
+    const FwIndexType index = route.get_portIndex();
+    if (!this->isConnected_cfsTelemetryOut_OutputPort(index)) {
+        this->returnData(data, context);
         return;
     }
     // The cFS telemetry secondary header is big-endian: 4-byte seconds, 2-byte subseconds.
@@ -141,15 +152,19 @@ void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data,
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_ROUTER_TLM_SEC_HDR_SIZE, data.getSize() - CFS_ROUTER_TLM_SEC_HDR_SIZE);
-    this->cfsTelemetryOut_out(route.index, time, payload);
+    if (this->trackPending(payload, context)) {
+        this->cfsTelemetryOut_out(index, time, payload);
+    } else {
+        this->returnData(data, context);
+    }
 }
 
 void CfsRouter ::routeUnknown(Fw::Buffer& data, const ComCfg::FrameContext& context) {
-    if (this->isConnected_unknownDataOut_OutputPort(0)) {
+    if (this->isConnected_unknownDataOut_OutputPort(0) && this->trackPending(data, context)) {
         // Ownership transfers to the receiver and returns via bufferReturnIn
         this->unknownDataOut_out(0, data, context);
     } else {
-        this->returnData(data);
+        this->returnData(data, context);
     }
 }
 

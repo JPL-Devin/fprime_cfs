@@ -68,9 +68,6 @@ class CfsRouterTester final : public CfsRouterGTestBase {
     // Helpers
     // ----------------------------------------------------------------------
 
-    //! Configure the component with the standard test routing table
-    void configureTable();
-
     //! Invoke dataIn with the given apid/secondary-header flag over the supplied bytes
     void sendData(ComCfg::Apid::T apid, bool hasSecHdr, U8* bytes, FwSizeType size);
 

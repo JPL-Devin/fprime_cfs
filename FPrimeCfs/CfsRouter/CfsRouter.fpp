@@ -1,52 +1,17 @@
 module FPrimeCfs {
 
-    @ Number of F Prime command output ports on the CfsRouter
-    constant CfsRouterFprimeCommandPorts = 10
-
-    @ Number of cFS command output ports on the CfsRouter
-    constant CfsRouterCfsCommandPorts = 10
-
-    @ Number of cFS telemetry output ports on the CfsRouter
-    constant CfsRouterCfsTelemetryPorts = 10
-
-    @ The category of output port that an APID routes to
-    enum CfsRouteType : U8 {
-        FPRIME_COMMAND  @< Route to an F Prime command output port (Fw.Com)
-        CFS_COMMAND     @< Route to a cFS command output port (function code + payload)
-        CFS_TELEMETRY   @< Route to a cFS telemetry output port (time + payload)
-    }
-
-    @ cFS system time, mirroring CFE_TIME_SysTime_t
-    struct CfsTime {
-        seconds: U32     @< Seconds since epoch
-        subseconds: U32  @< Fractional seconds in 2^-32 second units
-    }
-
-    @ A cFS command: function code from the command secondary header plus the payload.
-    @ Ownership of the buffer is passed to the receiver, which must return it
-    @ via the sender's buffer return port when done.
-    port CfsCommand(
-        functionCode: U8    @< Function code from the cFS command secondary header
-        ref data: Fw.Buffer @< Command payload (data after the secondary header)
-    )
-
-    @ A cFS telemetry message: time from the telemetry secondary header plus the payload.
-    @ Ownership of the buffer is passed to the receiver, which must return it
-    @ via the sender's buffer return port when done.
-    port CfsTelemetry(
-        sysTime: CfsTime    @< Time from the cFS telemetry secondary header
-        ref data: Fw.Buffer @< Telemetry payload (data after the secondary header)
-    )
-
     @ Routes packets deframed by an Svc.Ccsds.SpacePacketDeframer to the rest of the system.
     @ Replaces Svc.FprimeRouter in a cFS-hosted topology: F Prime commands are copied and
     @ forwarded like Svc.FprimeRouter; cFS commands and telemetry are forwarded on custom
     @ ports carrying the secondary-header fields (function code, or time) and the payload;
     @ anything without a configured route goes to the unknown output.
     @
-    @ Routing is selected by a configurable APID -> (route type, port index) table supplied
-    @ at topology configuration time via configure().
+    @ Routing is selected by the static APID -> (route type, port index) table configured
+    @ in CfsRouterCfg.fpp (CFS_ROUTER_ROUTE_TABLE).
     passive component CfsRouter {
+
+        @ The APID routing table type, statically configured via CfsRouterCfg.fpp
+        array CfsRouteTable = [CFS_ROUTER_ROUTE_TABLE_SIZE] CfsRouteEntry default CFS_ROUTER_ROUTE_TABLE
 
         # ----------------------------------------------------------------------
         # Router <-> Deframer
@@ -55,7 +20,8 @@ module FPrimeCfs {
         @ Receiving data (Fw::Buffer) to be routed, with the deframer-provided context
         sync input port dataIn: Svc.ComDataWithContext
 
-        @ Port for returning ownership of data received on dataIn
+        @ Port for returning ownership of data received on dataIn, with the context
+        @ it was received with
         output port dataReturnOut: Svc.ComDataWithContext
 
         # ----------------------------------------------------------------------
@@ -63,7 +29,7 @@ module FPrimeCfs {
         # ----------------------------------------------------------------------
 
         @ Port for sending F Prime command packets as Fw::ComBuffers (copied)
-        output port commandOut: [CfsRouterFprimeCommandPorts] Fw.Com
+        output port commandOut: [CFS_ROUTER_FPRIME_COMMAND_PORTS] Fw.Com
 
         @ Port for receiving command responses from a command dispatcher (no-op)
         sync input port cmdResponseIn: Fw.CmdResponse
@@ -73,10 +39,10 @@ module FPrimeCfs {
         # ----------------------------------------------------------------------
 
         @ Port for sending cFS commands (function code + payload)
-        output port cfsCommandOut: [CfsRouterCfsCommandPorts] FPrimeCfs.CfsCommand
+        output port cfsCommandOut: [CFS_ROUTER_CFS_COMMAND_PORTS] FPrimeCfs.CfsCommand
 
         @ Port for sending cFS telemetry (time + payload)
-        output port cfsTelemetryOut: [CfsRouterCfsTelemetryPorts] FPrimeCfs.CfsTelemetry
+        output port cfsTelemetryOut: [CFS_ROUTER_CFS_TELEMETRY_PORTS] FPrimeCfs.CfsTelemetry
 
         @ Port for forwarding packets with no configured route.
         @ Ownership of the buffer is passed to the receiver, which must return it
@@ -105,6 +71,14 @@ module FPrimeCfs {
             ) \
             severity warning high \
             format "Packet with APID {} (size {}) is missing the required cFS secondary header"
+
+        @ Too many buffers are outstanding on the pass-through routes; the packet was
+        @ returned to the sender unrouted
+        event TooManyPendingBuffers(
+                apid: U16   @< The APID of the packet
+            ) \
+            severity warning high \
+            format "Packet with APID {} dropped: too many pending buffers"
 
         ###############################################################################
         # Standard AC Ports for Events

@@ -9,12 +9,17 @@
 # https://fprime.jpl.nasa.gov/latest/docs/reference/api/cmake/API/
 #
 ####
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Types")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config/CfsRouterConfig")
 
 register_fprime_module(
     AUTOCODER_INPUTS
         "${CMAKE_CURRENT_LIST_DIR}/CfsRouter.fpp"
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/CfsRouter.cpp"
+    DEPENDS
+        Fw_DataStructures
+        FPrimeCfs_Ports
 )
 
 ### Unit Tests ###

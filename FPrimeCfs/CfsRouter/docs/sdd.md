@@ -17,16 +17,22 @@ CfsRouter.cfsCommandOut[j] / cfsTelemetryOut[k] / unknownDataOut -> [cFS-aware c
 [consumers' buffer return] -> CfsRouter.bufferReturnIn
 ```
 
-Routing is selected by an APID routing table supplied at topology configuration time:
+Routing is selected by a static APID routing table configured in `config/CfsRouterConfig/CfsRouterCfg.fpp`.
+Projects override this file (via `register_fprime_config` `CONFIGURATION_OVERRIDES`) to supply their own table,
+table size, port-array sizes, and pending-buffer limit:
 
-```cpp
-static const FPrimeCfs::CfsRouteEntry routes[] = {
-    {ComCfg::Apid::FW_PACKET_COMMAND, FPrimeCfs::CfsRouteType::FPRIME_COMMAND, 0},
-    {ComCfg::Apid::SOME_CFS_CMD_APID, FPrimeCfs::CfsRouteType::CFS_COMMAND, 0},
-    {ComCfg::Apid::SOME_CFS_TLM_APID, FPrimeCfs::CfsRouteType::CFS_TELEMETRY, 0},
-};
-cfsRouter.configure(routes, FW_NUM_ARRAY_ELEMENTS(routes));
 ```
+constant CFS_ROUTER_ROUTE_TABLE_SIZE = 3
+constant CFS_ROUTER_ROUTE_TABLE = [
+    { apid = ComCfg.Apid.FW_PACKET_COMMAND, routeType = CfsRouteType.FPRIME_COMMAND, portIndex = 0 },
+    { apid = ComCfg.Apid.SOME_CFS_CMD_APID, routeType = CfsRouteType.CFS_COMMAND,    portIndex = 0 },
+    { apid = ComCfg.Apid.SOME_CFS_TLM_APID, routeType = CfsRouteType.CFS_TELEMETRY,  portIndex = 0 },
+]
+```
+
+The route entry type (`CfsRouteEntry`), route type enumeration (`CfsRouteType`), and time type (`CfsTime`) are
+defined in the `Types` module (`Types/CfsRouterTypes.fpp`); the `CfsCommand` and `CfsTelemetry` port types are
+defined in the common `FPrimeCfs/Ports` module.
 
 Note: any cFS APID to be routed must also be present in the project's `ComCfg.Apid` enumeration, since the
 `Svc.Ccsds.SpacePacketDeframer` maps APIDs not in the enumeration to `INVALID_UNINITIALIZED` (which then takes the
@@ -48,6 +54,9 @@ unknown route).
   sender on `dataReturnOut` immediately. This is the only route that copies.
 - cFS command, cFS telemetry, and unknown routes: ownership of the (payload) buffer transfers to the receiver, and
   returns on `bufferReturnIn`, which forwards it to `dataReturnOut`.
+- Buffers are always returned on `dataReturnOut` with the context they were received with. For pass-through routes
+  the router records the buffer-to-context association in a map (capacity `CFS_ROUTER_MAX_PENDING_BUFFERS`); if the
+  map is full, the packet is returned unrouted with a warning event.
 - If the target output port for a computed route is not connected, the buffer is returned immediately rather than
   asserting or leaking.
 
@@ -55,7 +64,7 @@ unknown route).
 
 | Requirement | Description | Verification Method |
 |---|---|---|
-| FPRIMECFS-CFSROUTER-001 | CfsRouter shall select a route for each message received on `dataIn` using a configurable APID to (route type, port index) routing table. | Unit test |
+| FPRIMECFS-CFSROUTER-001 | CfsRouter shall select a route for each message received on `dataIn` using a statically configured APID to (route type, port index) routing table. | Unit test |
 | FPRIMECFS-CFSROUTER-002 | CfsRouter shall route messages whose APID is configured as `FPRIME_COMMAND` to the configured F Prime command output port by copying the packet data into an `Fw::ComBuffer`. | Unit test |
 | FPRIMECFS-CFSROUTER-003 | CfsRouter shall route messages whose APID is configured as `CFS_COMMAND` to the configured cFS command output port, providing the function code (`U8`) parsed from the cFS command secondary header and the payload buffer. | Unit test |
 | FPRIMECFS-CFSROUTER-004 | CfsRouter shall route messages whose APID is configured as `CFS_TELEMETRY` to the configured cFS telemetry output port, providing the time parsed from the 6-byte big-endian cFS telemetry secondary header and the payload buffer. | Unit test |
@@ -68,3 +77,4 @@ unknown route).
 | FPRIMECFS-CFSROUTER-011 | CfsRouter shall emit a warning-severity event when packet data cannot be copied into a command buffer. | Unit test |
 | FPRIMECFS-CFSROUTER-012 | When the target output port for a computed route is not connected, CfsRouter shall return the received buffer to the sender rather than assert or leak. | Unit test |
 | FPRIMECFS-CFSROUTER-013 | CfsRouter shall accept command responses on `cmdResponseIn` as a no-op. | Unit test |
+| FPRIMECFS-CFSROUTER-014 | CfsRouter shall return every buffer on `dataReturnOut` with the context it was received with. | Unit test |
