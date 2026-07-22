@@ -15,6 +15,8 @@ register_fprime_library(
         "${CMAKE_CURRENT_LIST_DIR}/SchAppDriver.fpp"
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/SchAppDriver.cpp"
+    DEPENDS
+        FPrimeCfs_Ports
 )
 
 ### Unit Tests ###

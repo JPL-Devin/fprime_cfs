@@ -1,6 +1,5 @@
 // ======================================================================
 // \title  SchAppDriver.cpp
-// \author mstarch
 // \brief  cpp file for SchAppDriver component implementation class
 // ======================================================================
 
@@ -21,11 +20,11 @@ SchAppDriver ::~SchAppDriver() {}
 // Handler implementations for typed input ports
 // ----------------------------------------------------------------------
 
-void SchAppDriver ::dataIn_handler(FwIndexType portNum, Fw::Buffer& data, const ComCfg::FrameContext& context) {
+void SchAppDriver ::cfsCommandIn_handler(FwIndexType portNum, U8 functionCode, Fw::Buffer& data) {
     Os::RawTime timestamp;
     timestamp.now();
     this->CycleOut_out(0, timestamp);
-    this->dataReturnOut_out(0, data, context);
+    this->bufferReturnOut_out(0, data);
 }
 
 }  // namespace FPrimeCfs

@@ -54,11 +54,11 @@ class SchAppDriverTester final : public SchAppDriverGTestBase {
     // Helper functions
     // ----------------------------------------------------------------------
 
-    //! Send a scheduler message with random contents on dataIn
-    void sendSchMessage(Fw::Buffer& buffer, ComCfg::FrameContext& context);
+    //! Send a scheduler command message with random contents on cfsCommandIn
+    void sendSchMessage(Fw::Buffer& buffer);
 
     //! Assert exactly one tick and one buffer return matching the sent message
-    void assertSingleTickAndReturn(const Fw::Buffer& buffer, const ComCfg::FrameContext& context);
+    void assertSingleTickAndReturn(const Fw::Buffer& buffer);
 
     //! Connect ports
     void connectPorts();

@@ -1,6 +1,5 @@
 // ======================================================================
 // \title  SchAppDriver.hpp
-// \author mstarch
 // \brief  hpp file for SchAppDriver component implementation class
 // ======================================================================
 
@@ -29,13 +28,14 @@ class SchAppDriver final : public SchAppDriverComponentBase {
     // Handler implementations for typed input ports
     // ----------------------------------------------------------------------
 
-    //! Handler implementation for dataIn
+    //! Handler implementation for cfsCommandIn
     //!
-    //! Port receiving routed cFS scheduler messages. Each received message
-    //! triggers one tick on CycleOut.
-    void dataIn_handler(FwIndexType portNum,  //!< The port number
-                        Fw::Buffer& data,
-                        const ComCfg::FrameContext& context) override;
+    //! Port receiving routed cFS scheduler command messages. Emits one tick
+    //! on CycleOut and returns the buffer via bufferReturnOut.
+    void cfsCommandIn_handler(FwIndexType portNum,  //!< The port number
+                              U8 functionCode,      //!< Function code from the cFS command secondary header
+                              Fw::Buffer& data      //!< Command payload
+                              ) override;
 };
 
 }  // namespace FPrimeCfs
