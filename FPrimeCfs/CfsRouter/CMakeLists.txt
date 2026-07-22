@@ -23,6 +23,9 @@ register_fprime_module(
 )
 
 ### Unit Tests ###
+if (BUILD_TESTING AND NOT __FPRIME_NO_UT_GEN__)
+    add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/test/ut/config")
+endif()
 register_fprime_ut(
     AUTOCODER_INPUTS
         "${CMAKE_CURRENT_LIST_DIR}/CfsRouter.fpp"

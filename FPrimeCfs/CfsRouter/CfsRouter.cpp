@@ -75,13 +75,12 @@ void CfsRouter ::returnData(Fw::Buffer& data, const ComCfg::FrameContext& contex
     this->dataReturnOut_out(0, data, context);
 }
 
-bool CfsRouter ::trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context) {
+Fw::Success CfsRouter ::trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context) {
     const Fw::Success status = this->m_pending.insert(buffer.getData(), context);
     if (status != Fw::Success::SUCCESS) {
         this->log_WARNING_HI_TooManyPendingBuffers(static_cast<U16>(context.get_apid()));
-        return false;
     }
-    return true;
+    return status;
 }
 
 void CfsRouter ::routeFprimeCommand(const CfsRouteEntry& route,
@@ -123,7 +122,8 @@ void CfsRouter ::routeCfsCommand(const CfsRouteEntry& route, Fw::Buffer& data, c
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_ROUTER_CMD_SEC_HDR_SIZE, data.getSize() - CFS_ROUTER_CMD_SEC_HDR_SIZE);
-    if (this->trackPending(payload, context)) {
+    const Fw::Success trackStatus = this->trackPending(payload, context);
+    if (trackStatus == Fw::Success::SUCCESS) {
         this->cfsCommandOut_out(index, functionCode, payload);
     } else {
         this->returnData(data, context);
@@ -152,7 +152,8 @@ void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data,
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_ROUTER_TLM_SEC_HDR_SIZE, data.getSize() - CFS_ROUTER_TLM_SEC_HDR_SIZE);
-    if (this->trackPending(payload, context)) {
+    const Fw::Success trackStatus = this->trackPending(payload, context);
+    if (trackStatus == Fw::Success::SUCCESS) {
         this->cfsTelemetryOut_out(index, time, payload);
     } else {
         this->returnData(data, context);
@@ -160,7 +161,12 @@ void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data,
 }
 
 void CfsRouter ::routeUnknown(Fw::Buffer& data, const ComCfg::FrameContext& context) {
-    if (this->isConnected_unknownDataOut_OutputPort(0) && this->trackPending(data, context)) {
+    if (!this->isConnected_unknownDataOut_OutputPort(0)) {
+        this->returnData(data, context);
+        return;
+    }
+    const Fw::Success trackStatus = this->trackPending(data, context);
+    if (trackStatus == Fw::Success::SUCCESS) {
         // Ownership transfers to the receiver and returns via bufferReturnIn
         this->unknownDataOut_out(0, data, context);
     } else {

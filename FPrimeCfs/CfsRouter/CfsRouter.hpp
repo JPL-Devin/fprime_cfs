@@ -62,8 +62,8 @@ class CfsRouter final : public CfsRouterComponentBase {
     void returnData(Fw::Buffer& data, const ComCfg::FrameContext& context);
 
     //! Track an outgoing pass-through buffer so its context can be restored on return.
-    //! Returns true on success; on failure the buffer must not be routed.
-    bool trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context);
+    //! On failure the buffer must not be routed.
+    Fw::Success trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context);
 
     //! Route an F Prime command packet (copy)
     void routeFprimeCommand(const CfsRouteEntry& route,
@@ -88,7 +88,7 @@ class CfsRouter final : public CfsRouterComponentBase {
     // ----------------------------------------------------------------------
 
     //! The APID routing table, statically configured via CfsRouterCfg.fpp
-    CfsRouter_CfsRouteTable m_routes;
+    const CfsRouter_CfsRouteTable m_routes;
 
     //! Map of outstanding pass-through buffers to the context each was received with,
     //! used to return the original context on dataReturnOut
