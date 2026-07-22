@@ -46,45 +46,42 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     void testSubscribeFailure();
 
     // ----------------------------------------------------------------------
-    // Tests: framing (dataIn -> software bus)
+    // Tests: transmit (dataIn -> software bus)
     // ----------------------------------------------------------------------
 
-    //! Command APID data is framed with a command header and transmitted
-    void testFrameCommand();
+    //! A single complete space packet is transmitted as one software bus message
+    void testTransmitSinglePacket();
 
-    //! Non-command APID data is framed with a telemetry header and transmitted
-    void testFrameTelemetry();
-
-    //! Buffer ownership is returned and com status emitted on message init failure
-    void testFrameInitFailure();
+    //! Multiple concatenated space packets are each transmitted as their own message
+    void testTransmitMultiplePackets();
 
     //! Buffer ownership is returned and com status emitted on transmit failure
-    void testFrameTransmitFailure();
+    void testTransmitFailure();
+
+    //! A packet whose length field exceeds the available data is dropped
+    void testTransmitTruncated();
+
+    //! Residual bytes too small to form a primary header are dropped
+    void testTransmitResidual();
 
     // ----------------------------------------------------------------------
-    // Tests: deframing (software bus -> dataOut)
+    // Tests: receive (software bus -> dataOut)
     // ----------------------------------------------------------------------
 
-    //! Received software bus messages are deframed and sent out dataOut with the APID context
-    void testDeframe();
+    //! Received software bus messages are sent whole out dataOut with a default context
+    void testReceive();
 
     //! process() emits a single preroll com status once subscribed
     void testPreroll();
 
-    //! Messages with ids that do not map to a valid APID are dropped
-    void testDeframeInvalidApid();
-
     //! Empty software bus polls produce no output
-    void testDeframeNoMessage();
+    void testReceiveNoMessage();
 
     //! Software bus receive errors produce no output
-    void testDeframeReceiveError();
+    void testReceiveError();
 
-    //! Messages whose id cannot be read are dropped
-    void testDeframeGetMsgIdFailure();
-
-    //! Data too large for a cFS message is dropped with buffer return and com status
-    void testFrameOversize();
+    //! Messages whose size cannot be read are dropped
+    void testReceiveGetSizeFailure();
 
     //! Flow control gates deframed messages on comStatusIn signals
     void testFlowControl();
@@ -103,8 +100,11 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! Configure and subscribe the component to the given apid
     void configureAndSubscribe(ComCfg::Apid::T apid, bool paused = false);
 
-    //! Fill a buffer with random data of random size within [1, maxSize]
-    void fillRandom(Fw::Buffer& buffer, FwSizeType maxSize);
+    //! Build a CCSDS space packet with the given stream identifier and payload; returns the packet size
+    FwSizeType makePacket(U8* dest, U16 streamIdValue, const U8* payload, FwSizeType payloadSize);
+
+    //! Fill a byte array with random data
+    void fillRandom(U8* data, FwSizeType size);
 
     //! Send a buffer through dataIn (dispatching the queued message) and assert
     //! buffer return and com status emission
@@ -116,8 +116,8 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! Assert that a transmit call matches the given expectations
     void assertTransmitted(U32 index,
                            CFE_SB_MsgId_Atom_t expectedMsgId,
-                           FwSizeType expectedHeaderSize,
-                           const Fw::Buffer& expectedPayload);
+                           const U8* expectedPayload,
+                           FwSizeType expectedPayloadSize);
 
     void connectPorts();    //!< Connects all ports for the component under test (auto-generated)
     void initComponents();  //!< Initializes the component under test (auto-generated)

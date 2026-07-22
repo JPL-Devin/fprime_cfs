@@ -35,39 +35,46 @@ TEST(OffNominal, SubscribeFailure) {
     tester.testSubscribeFailure();
 }
 
-TEST(Nominal, FrameCommand) {
-    COMMENT("Command APID data is framed with a command header and transmitted");
+TEST(Nominal, TransmitSinglePacket) {
+    COMMENT("A single complete space packet is transmitted as one software bus message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameCommand();
+    tester.testTransmitSinglePacket();
 }
 
-TEST(Nominal, FrameTelemetry) {
-    COMMENT("Non-command APID data is framed with a telemetry header and transmitted");
+TEST(Nominal, TransmitMultiplePackets) {
+    COMMENT("Multiple concatenated space packets are each transmitted as their own message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameTelemetry();
+    tester.testTransmitMultiplePackets();
 }
 
-TEST(OffNominal, FrameInitFailure) {
-    COMMENT("Buffer ownership is returned and com status emitted on message init failure");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameInitFailure();
-}
-
-TEST(OffNominal, FrameTransmitFailure) {
+TEST(OffNominal, TransmitFailure) {
     COMMENT("Buffer ownership is returned and com status emitted on transmit failure");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameTransmitFailure();
+    tester.testTransmitFailure();
 }
 
-TEST(Nominal, Deframe) {
-    COMMENT("Received software bus messages are deframed and sent out dataOut with the APID context");
+TEST(OffNominal, TransmitTruncated) {
+    COMMENT("A packet whose length field exceeds the available data is dropped");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitTruncated();
+}
+
+TEST(OffNominal, TransmitResidual) {
+    COMMENT("Residual bytes too small to form a primary header are dropped");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitResidual();
+}
+
+TEST(Nominal, Receive) {
+    COMMENT("Received software bus messages are sent whole out dataOut with a default context");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframe();
+    tester.testReceive();
 }
 
 TEST(Nominal, Preroll) {
@@ -77,43 +84,29 @@ TEST(Nominal, Preroll) {
     tester.testPreroll();
 }
 
-TEST(OffNominal, DeframeInvalidApid) {
-    COMMENT("Messages with ids that do not map to a valid APID are dropped");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeInvalidApid();
-}
-
-TEST(Nominal, DeframeNoMessage) {
+TEST(Nominal, ReceiveNoMessage) {
     COMMENT("Empty software bus polls produce no output");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeNoMessage();
+    tester.testReceiveNoMessage();
 }
 
-TEST(OffNominal, DeframeReceiveError) {
+TEST(OffNominal, ReceiveError) {
     COMMENT("Software bus receive errors produce no output");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeReceiveError();
+    tester.testReceiveError();
 }
 
-TEST(OffNominal, DeframeGetMsgIdFailure) {
-    COMMENT("Messages whose id cannot be read are dropped");
+TEST(OffNominal, ReceiveGetSizeFailure) {
+    COMMENT("Messages whose size cannot be read are dropped");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");
     FPrimeCfs::CfsBridgeTester tester;
-    tester.testDeframeGetMsgIdFailure();
-}
-
-TEST(OffNominal, FrameOversize) {
-    COMMENT("Data too large for a cFS message is dropped with buffer return and com status");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-004");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testFrameOversize();
+    tester.testReceiveGetSizeFailure();
 }
 
 TEST(Nominal, FlowControl) {
-    COMMENT("Flow control gates deframed messages on comStatusIn signals");
+    COMMENT("Flow control gates received messages on comStatusIn signals");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-007");
     FPrimeCfs::CfsBridgeTester tester;
     tester.testFlowControl();

@@ -44,8 +44,7 @@ struct State {
     CFE_Status_t createPipeStatus;
     CFE_Status_t subscribeStatus;
     CFE_Status_t transmitStatus;
-    CFE_Status_t msgInitStatus;
-    CFE_Status_t getMsgIdStatus;
+    CFE_Status_t getSizeStatus;
     CFE_Status_t receiveStatus;  //!< Returned by CFE_SB_ReceiveBuffer when not CFE_SUCCESS
 
     // Call records
@@ -69,8 +68,8 @@ State& state();
 //! Reset the stub state to defaults (all statuses CFE_SUCCESS, no records)
 void reset();
 
-//! Queue a message for receipt: builds a stub message with the given message
-//! id value and payload placed after the appropriate (command/telemetry) header
+//! Queue a message for receipt: builds a CCSDS space packet with the given
+//! stream identifier value and payload placed after the 6-byte primary header
 void queueMessage(CFE_SB_MsgId_Atom_t msgIdValue, const uint8* payload, size_t payloadSize);
 
 }  // namespace CfeStub

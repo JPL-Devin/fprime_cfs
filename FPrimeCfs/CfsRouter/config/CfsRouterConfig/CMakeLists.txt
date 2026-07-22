@@ -1,0 +1,11 @@
+####
+# FPrimeCfs/CfsRouter/config/CfsRouterConfig/CMakeLists.txt:
+#
+# Sets a list of source files for cmake to process as part of autocoding.
+####
+register_fprime_config(
+    AUTOCODER_INPUTS
+        "${CMAKE_CURRENT_LIST_DIR}/CfsRouterCfg.fpp"
+    DEPENDS
+        FPrimeCfs_CfsRouter_Types
+)
