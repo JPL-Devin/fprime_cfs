@@ -49,16 +49,22 @@ class SchAppDriverTester final : public SchAppDriverGTestBase {
     //! Each of a series of scheduler messages produces one tick and buffer return
     void testMultipleTicks();
 
+    //! A message with an unexpected function code produces an event and no tick
+    void testUnexpectedFunctionCode();
+
   private:
     // ----------------------------------------------------------------------
     // Helper functions
     // ----------------------------------------------------------------------
 
     //! Send a scheduler command message with random contents on cfsCommandIn
-    void sendSchMessage(Fw::Buffer& buffer);
+    void sendSchMessage(Fw::Buffer& buffer, U8 functionCode);
 
     //! Assert exactly one tick and one buffer return matching the sent message
     void assertSingleTickAndReturn(const Fw::Buffer& buffer);
+
+    //! Assert exactly one buffer return matching the sent message
+    void assertBufferReturned(const Fw::Buffer& buffer);
 
     //! Connect ports
     void connectPorts();
@@ -73,6 +79,9 @@ class SchAppDriverTester final : public SchAppDriverGTestBase {
 
     //! The component under test
     SchAppDriver component;
+
+    //! The expected function code configured on the component under test
+    U8 m_expectedFunctionCode;
 
     //! Backing storage for test message buffers
     U8 m_messageData[MAX_MESSAGE_SIZE];

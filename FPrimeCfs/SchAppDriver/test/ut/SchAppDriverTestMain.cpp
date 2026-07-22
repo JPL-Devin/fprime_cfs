@@ -24,6 +24,13 @@ TEST(Nominal, MultipleTicks) {
     tester.testMultipleTicks();
 }
 
+TEST(OffNominal, UnexpectedFunctionCode) {
+    COMMENT("A message with an unexpected function code produces a warning event and no tick");
+    REQUIREMENT("REQ-SchAppDriver-004");
+    FPrimeCfs::SchAppDriverTester tester;
+    tester.testUnexpectedFunctionCode();
+}
+
 int main(int argc, char** argv) {
     STest::Random::seed();
     ::testing::InitGoogleTest(&argc, argv);

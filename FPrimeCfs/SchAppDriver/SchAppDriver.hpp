@@ -12,6 +12,10 @@ namespace FPrimeCfs {
 
 class SchAppDriver final : public SchAppDriverComponentBase {
   public:
+    //! The default expected function code of scheduler messages (cFS scheduler
+    //! wakeup messages carry function code 0)
+    static const U8 DEFAULT_EXPECTED_FUNCTION_CODE = 0;
+
     // ----------------------------------------------------------------------
     // Component construction and destruction
     // ----------------------------------------------------------------------
@@ -23,6 +27,10 @@ class SchAppDriver final : public SchAppDriverComponentBase {
     //! Destroy SchAppDriver object
     ~SchAppDriver();
 
+    //! Configure the expected function code of scheduler messages
+    void configure(U8 expectedFunctionCode  //!< The function code that valid scheduler messages carry
+    );
+
   private:
     // ----------------------------------------------------------------------
     // Handler implementations for typed input ports
@@ -31,11 +39,19 @@ class SchAppDriver final : public SchAppDriverComponentBase {
     //! Handler implementation for cfsCommandIn
     //!
     //! Port receiving routed cFS scheduler command messages. Emits one tick
-    //! on CycleOut and returns the buffer via bufferReturnOut.
+    //! on CycleOut for messages with the expected function code, and returns
+    //! the buffer via bufferReturnOut.
     void cfsCommandIn_handler(FwIndexType portNum,  //!< The port number
                               U8 functionCode,      //!< Function code from the cFS command secondary header
                               Fw::Buffer& data      //!< Command payload
                               ) override;
+
+    // ----------------------------------------------------------------------
+    // Member variables
+    // ----------------------------------------------------------------------
+
+    //! The function code that valid scheduler messages carry
+    U8 m_expectedFunctionCode;
 };
 
 }  // namespace FPrimeCfs
