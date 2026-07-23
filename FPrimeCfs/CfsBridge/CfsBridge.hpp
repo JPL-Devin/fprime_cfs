@@ -33,6 +33,12 @@ constexpr U32 CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK = 0x0800;
 class CfsBridge final : public CfsBridgeComponentBase
 {
   public:
+    //! Type of cFS message to subscribe to
+    enum class CfsMessageType {
+        COMMAND,   //!< cFS command message: packet type bit and secondary header flag set
+        TELEMETRY  //!< cFS telemetry message: secondary header flag set, packet type bit clear
+    };
+
     enum ConfigurationState {
         UNCONFIGURED, //!< The component is not configured and cannot operate
         CONFIGURED,    //!< The component is configured and can operate
@@ -63,12 +69,13 @@ class CfsBridge final : public CfsBridgeComponentBase
     //! in the components processQueue() function and sent out the dataOut port.
     CFE_Status_t subscribe(const ComCfg::Apid::T apid);
 
-    //! Subscribe to a cFS command message with the supplied F Prime apid
+    //! Subscribe to a cFS command or telemetry message with the supplied F Prime apid
     //!
-    //! Subscribe to the message-bus for cFS command messages (packet type bit and secondary header flag set in the
-    //! stream identifier) with the given APID, such as scheduler (SCH) wakeup messages. Received messages will be
-    //! processed in the component's process() function and sent out the dataOut port.
-    CFE_Status_t subscribeCfsCommand(const ComCfg::Apid::T apid);
+    //! Subscribe to the message-bus for cFS messages with the given APID. The message type selects how the message
+    //! ID is formed: COMMAND sets both the packet type bit and the secondary header flag (e.g. scheduler (SCH)
+    //! wakeup messages), while TELEMETRY sets only the secondary header flag (e.g. housekeeping telemetry).
+    //! Received messages will be processed in the component's process() function and sent out the dataOut port.
+    CFE_Status_t subscribeCfs(const ComCfg::Apid::T apid, const CfsMessageType type);
 
     //! Process messages in the component's queue and the cFS software bus
     //!
