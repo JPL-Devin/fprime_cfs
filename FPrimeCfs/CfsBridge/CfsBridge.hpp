@@ -27,6 +27,8 @@ constexpr FwSizeType CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE = 6;
 constexpr U32 CFS_BRIDGE_SPACE_PACKET_APID_MASK = 0x07FF;
 //! Mask of the packet type bit (1 = command) within the space packet stream identifier
 constexpr U32 CFS_BRIDGE_SPACE_PACKET_TYPE_MASK = 0x1000;
+//! Mask of the secondary header flag within the space packet stream identifier
+constexpr U32 CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK = 0x0800;
 
 class CfsBridge final : public CfsBridgeComponentBase
 {
@@ -60,6 +62,13 @@ class CfsBridge final : public CfsBridgeComponentBase
     //! Subscribe to the message-bus for messages with the given APID.  If messages are available, they will be processed
     //! in the components processQueue() function and sent out the dataOut port.
     CFE_Status_t subscribe(const ComCfg::Apid::T apid);
+
+    //! Subscribe to a cFS command message with the supplied F Prime apid
+    //!
+    //! Subscribe to the message-bus for cFS command messages (packet type bit and secondary header flag set in the
+    //! stream identifier) with the given APID, such as scheduler (SCH) wakeup messages. Received messages will be
+    //! processed in the component's process() function and sent out the dataOut port.
+    CFE_Status_t subscribeCfsCommand(const ComCfg::Apid::T apid);
 
     //! Process messages in the component's queue and the cFS software bus
     //!
