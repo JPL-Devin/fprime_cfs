@@ -13,7 +13,8 @@ namespace FPrimeCfs {
 static const ComCfg::Apid::T FPRIME_CMD_APID = ComCfg::Apid::FW_PACKET_COMMAND;
 static const ComCfg::Apid::T CFS_CMD_APID = ComCfg::Apid::FW_PACKET_HAND;
 static const ComCfg::Apid::T CFS_TLM_APID = ComCfg::Apid::FW_PACKET_TELEM;
-static const ComCfg::Apid::T UNKNOWN_APID = ComCfg::Apid::FW_PACKET_FILE;
+static const ComCfg::Apid::T FILE_APID = ComCfg::Apid::FW_PACKET_FILE;
+static const ComCfg::Apid::T UNKNOWN_APID = ComCfg::Apid::FW_PACKET_LOG;
 
 // ----------------------------------------------------------------------
 // Construction and destruction
@@ -130,6 +131,22 @@ void CfsRouterTester ::testRouteCfsTelemetry() {
     ASSERT_EVENTS_SIZE(0);
 }
 
+void CfsRouterTester ::testRouteFile() {
+    U8 bytes[6] = {0x10, 0x20, 0x30, 0x40, 0x50, 0x60};
+    this->sendData(FILE_APID, false, bytes, sizeof(bytes));
+    ASSERT_from_fileOut_SIZE(1);
+    Fw::Buffer buffer = this->fromPortHistory_fileOut->at(0).fwBuffer;
+    ASSERT_EQ(buffer.getData(), bytes);
+    ASSERT_EQ(buffer.getSize(), sizeof(bytes));
+    // Ownership not yet returned
+    ASSERT_from_dataReturnOut_SIZE(0);
+    this->invoke_to_fileBufferReturnIn(0, buffer);
+    ASSERT_from_dataReturnOut_SIZE(1);
+    // The buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), FILE_APID);
+    ASSERT_EVENTS_SIZE(0);
+}
+
 void CfsRouterTester ::testRouteUnknown() {
     U8 bytes[4] = {0x01, 0x02, 0x03, 0x04};
     this->sendData(UNKNOWN_APID, false, bytes, sizeof(bytes));
@@ -188,6 +205,8 @@ void CfsRouterTester ::testDisconnectedOutputs() {
     ASSERT_from_dataReturnOut_SIZE(3);
     this->sendData(UNKNOWN_APID, false, bytes, sizeof(bytes));
     ASSERT_from_dataReturnOut_SIZE(4);
+    this->sendData(FILE_APID, false, bytes, sizeof(bytes));
+    ASSERT_from_dataReturnOut_SIZE(5);
 }
 
 void CfsRouterTester ::testCommandResponseNoop() {
@@ -206,8 +225,8 @@ void CfsRouterTester ::testRandomized() {
         }
         const FwSizeType size = static_cast<FwSizeType>(
             STest::Pick::lowerUpper(CFS_ROUTER_TLM_SEC_HDR_SIZE, sizeof(bytes)));
-        const U32 pick = STest::Pick::lowerUpper(0, 3);
-        static const ComCfg::Apid::T APIDS[4] = {FPRIME_CMD_APID, CFS_CMD_APID, CFS_TLM_APID, UNKNOWN_APID};
+        const U32 pick = STest::Pick::lowerUpper(0, 4);
+        static const ComCfg::Apid::T APIDS[5] = {FPRIME_CMD_APID, CFS_CMD_APID, CFS_TLM_APID, FILE_APID, UNKNOWN_APID};
         const bool hasSecHdr = (STest::Pick::lowerUpper(0, 1) == 1);
         this->sendData(APIDS[pick], hasSecHdr, bytes, size);
         // Return any buffer handed out on a pass-through route
@@ -220,6 +239,9 @@ void CfsRouterTester ::testRandomized() {
         } else if (this->fromPortHistory_unknownDataOut->size() > 0) {
             Fw::Buffer buffer = this->fromPortHistory_unknownDataOut->at(0).data;
             this->invoke_to_bufferReturnIn(0, buffer);
+        } else if (this->fromPortHistory_fileOut->size() > 0) {
+            Fw::Buffer buffer = this->fromPortHistory_fileOut->at(0).fwBuffer;
+            this->invoke_to_fileBufferReturnIn(0, buffer);
         }
         // Every message results in exactly one buffer return
         ASSERT_from_dataReturnOut_SIZE(1);

@@ -51,6 +51,9 @@ class CfsRouter final : public CfsRouterComponentBase {
     //! Handler implementation for bufferReturnIn
     void bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) override;
 
+    //! Handler implementation for fileBufferReturnIn
+    void fileBufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) override;
+
     // ----------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------
@@ -79,6 +82,9 @@ class CfsRouter final : public CfsRouterComponentBase {
     void routeCfsTelemetry(const CfsRouteEntry& route,
                            Fw::Buffer& data,
                            const ComCfg::FrameContext& context);
+
+    //! Route a file packet (ownership transfer)
+    void routeFile(Fw::Buffer& data, const ComCfg::FrameContext& context);
 
     //! Route a packet to the unknown output (ownership transfer)
     void routeUnknown(Fw::Buffer& data, const ComCfg::FrameContext& context);

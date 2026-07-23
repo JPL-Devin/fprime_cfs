@@ -59,6 +59,9 @@ unknown route).
   map is full, the packet is returned unrouted with a warning event.
 - If the target output port for a computed route is not connected, the buffer is returned immediately rather than
   asserting or leaking.
+- File route: APIDs configured as `FILE` route the whole packet data to `fileOut` (`Fw.BufferSend`, matching
+  the `Svc.Router` interface). Ownership transfers to the receiver and returns on `fileBufferReturnIn`, which
+  behaves identically to `bufferReturnIn`.
 
 ## Requirements
 
@@ -78,3 +81,4 @@ unknown route).
 | FPRIMECFS-CFSROUTER-012 | When the target output port for a computed route is not connected, CfsRouter shall return the received buffer to the sender rather than assert or leak. | Unit test |
 | FPRIMECFS-CFSROUTER-013 | CfsRouter shall accept command responses on `cmdResponseIn` as a no-op. | Unit test |
 | FPRIMECFS-CFSROUTER-014 | CfsRouter shall return every buffer on `dataReturnOut` with the context it was received with. | Unit test |
+| FPRIMECFS-CFSROUTER-015 | CfsRouter shall route messages whose APID is configured as `FILE` to the file output port, transferring buffer ownership to the receiver and returning ownership to the sender only after the buffer is returned on `fileBufferReturnIn`. | Unit test |

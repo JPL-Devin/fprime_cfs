@@ -45,6 +45,9 @@ class CfsRouterTester final : public CfsRouterGTestBase {
     //! cFS telemetry routes with parsed time and payload; ownership returns via bufferReturnIn
     void testRouteCfsTelemetry();
 
+    //! File packets route to the file output; ownership returns via fileBufferReturnIn
+    void testRouteFile();
+
     //! Unconfigured APIDs route to the unknown output with their context
     void testRouteUnknown();
 
