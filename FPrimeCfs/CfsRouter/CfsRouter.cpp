@@ -36,6 +36,9 @@ void CfsRouter ::dataIn_handler(FwIndexType portNum, Fw::Buffer& data, const Com
         case CfsRouteType::CFS_TELEMETRY:
             this->routeCfsTelemetry(*route, data, context);
             break;
+        case CfsRouteType::FILE:
+            this->routeFile(data, context);
+            break;
         default:
             FW_ASSERT(0, static_cast<FwAssertArgType>(route->get_routeType()));
             break;
@@ -159,6 +162,20 @@ void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data,
     const Fw::Success trackStatus = this->trackPending(payload, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         this->cfsTelemetryOut_out(index, time, payload);
+    } else {
+        this->returnData(data, context);
+    }
+}
+
+void CfsRouter ::routeFile(Fw::Buffer& data, const ComCfg::FrameContext& context) {
+    if (!this->isConnected_fileOut_OutputPort(0)) {
+        this->returnData(data, context);
+        return;
+    }
+    const Fw::Success trackStatus = this->trackPending(data, context);
+    if (trackStatus == Fw::Success::SUCCESS) {
+        // Ownership transfers to the receiver and returns via fileBufferReturnIn
+        this->fileOut_out(0, data);
     } else {
         this->returnData(data, context);
     }

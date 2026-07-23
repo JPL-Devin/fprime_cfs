@@ -47,6 +47,13 @@ TEST(Nominal, RouteCfsTelemetry) {
     tester.testRouteCfsTelemetry();
 }
 
+TEST(Nominal, RouteFile) {
+    COMMENT("File packets route to the file output; ownership returns via fileBufferReturnIn");
+    REQUIREMENT("FPRIMECFS-CFSROUTER-015");
+    FPrimeCfs::CfsRouterTester tester;
+    tester.testRouteFile();
+}
+
 TEST(Nominal, RouteUnknown) {
     COMMENT("Unconfigured APIDs route to the unknown output with their context");
     REQUIREMENT("FPRIMECFS-CFSROUTER-005");

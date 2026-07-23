@@ -83,6 +83,9 @@ class CfsRouter final : public CfsRouterComponentBase {
                            Fw::Buffer& data,
                            const ComCfg::FrameContext& context);
 
+    //! Route a file packet (ownership transfer)
+    void routeFile(Fw::Buffer& data, const ComCfg::FrameContext& context);
+
     //! Route a packet to the unknown output (ownership transfer)
     void routeUnknown(Fw::Buffer& data, const ComCfg::FrameContext& context);
 

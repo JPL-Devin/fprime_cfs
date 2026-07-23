@@ -11,6 +11,7 @@ module FPrimeCfs {
         FPRIME_COMMAND  @< Route to an F Prime command output port (Fw.Com)
         CFS_COMMAND     @< Route to a cFS command output port (function code + payload)
         CFS_TELEMETRY   @< Route to a cFS telemetry output port (time + payload)
+        FILE            @< Route to the file output port (Fw.BufferSend)
     }
 
     @ cFS system time, mirroring CFE_TIME_SysTime_t
