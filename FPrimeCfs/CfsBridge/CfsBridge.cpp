@@ -69,6 +69,22 @@ CFE_Status_t CfsBridge ::subscribe(const ComCfg::Apid::T apid) {
     return status;
 }
 
+CFE_Status_t CfsBridge ::subscribeCfs(const ComCfg::Apid::T apid, const CfsMessageType type) {
+    FW_ASSERT(this->m_configurationState != UNCONFIGURED);
+    // cFS messages carry a secondary header: the stream identifier (and thus the message ID) has
+    // the secondary header flag set, and the packet type bit set for commands and clear for telemetry
+    U32 message_id = (static_cast<U32>(apid) & CFS_BRIDGE_SPACE_PACKET_APID_MASK) |
+                     CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK |
+                     ((type == CfsMessageType::COMMAND) ? CFS_BRIDGE_SPACE_PACKET_TYPE_MASK : 0);
+    CFE_SB_MsgId_t msgId = CFE_SB_ValueToMsgId(message_id);
+    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->inputPipe);
+    if (status == CFE_SUCCESS) {
+        this->m_configurationState = SUBSCRIBED;
+        Fw::Logger::log("[INFO] Successfully subscribed to message ID: 0x%08x\n", message_id);
+    }
+    return status;
+}
+
 // ----------------------------------------------------------------------
 // Handler implementations for typed input ports
 // ----------------------------------------------------------------------
