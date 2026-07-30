@@ -314,6 +314,67 @@ void CfsBridgeTester ::testTransmitWrapTooLarge() {
     ASSERT_EQ(CfeStub::state().transmitCount, 0u);
 }
 
+void CfsBridgeTester ::testTransmitWrapExactBoundary() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, true), CFE_SUCCESS);
+
+    // A command packet whose wrapped size exactly equals the wrap storage is transmitted
+    const FwSizeType payloadSize = CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE - HEADER_SIZE - CFS_BRIDGE_CMD_SEC_HDR_SIZE;
+    U8 storage[CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE + 64];
+    U8 payload[CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE + 64 - HEADER_SIZE];
+    this->fillRandom(payload, payloadSize);
+    Fw::Buffer buffer(storage, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, CMD_MID_FOR_APID_0, payload, payloadSize));
+    ComCfg::FrameContext context;
+
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 1u);
+    const CfeStub::TransmitCall& call = CfeStub::state().transmitCalls[0];
+    ASSERT_EQ(call.totalSize, CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE);
+    ASSERT_EQ(call.payload[0], CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE);
+    ASSERT_EQ(std::memcmp(&call.payload[CFS_BRIDGE_CMD_SEC_HDR_SIZE], payload, payloadSize), 0);
+}
+
+void CfsBridgeTester ::testTransmitWrapMultiplePackets() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, true), CFE_SUCCESS);
+
+    // A buffer holding a command packet followed by a telemetry packet: the command is wrapped,
+    // the telemetry packet after it is still found and transmitted unmodified
+    U8 payloadOne[16];
+    U8 payloadTwo[24];
+    this->fillRandom(payloadOne, sizeof(payloadOne));
+    this->fillRandom(payloadTwo, sizeof(payloadTwo));
+    U8 storage[128];
+    FwSizeType offset = this->makePacket(storage, CMD_MID_FOR_APID_0, payloadOne, sizeof(payloadOne));
+    offset += this->makePacket(&storage[offset], TLM_MID_FOR_APID_1, payloadTwo, sizeof(payloadTwo));
+    Fw::Buffer buffer(storage, sizeof(storage));
+    buffer.setSize(offset);
+    ComCfg::FrameContext context;
+
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 2u);
+    const CfeStub::TransmitCall& first = CfeStub::state().transmitCalls[0];
+    ASSERT_EQ(first.msgIdValue, CMD_MID_FOR_APID_0 | 0x0800);
+    ASSERT_EQ(first.totalSize, HEADER_SIZE + CFS_BRIDGE_CMD_SEC_HDR_SIZE + sizeof(payloadOne));
+    ASSERT_EQ(std::memcmp(&first.payload[CFS_BRIDGE_CMD_SEC_HDR_SIZE], payloadOne, sizeof(payloadOne)), 0);
+    this->assertTransmitted(1, TLM_MID_FOR_APID_1, payloadTwo, sizeof(payloadTwo));
+}
+
+void CfsBridgeTester ::testTransmitWrapFailure() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, true), CFE_SUCCESS);
+
+    U8 payload[16];
+    this->fillRandom(payload, sizeof(payload));
+    U8 storage[64];
+    Fw::Buffer buffer(storage, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, CMD_MID_FOR_APID_0, payload, sizeof(payload)));
+    ComCfg::FrameContext context;
+
+    CfeStub::state().transmitStatus = CFE_SB_BAD_ARGUMENT;
+    // Buffer return and com status are still emitted when the wrapped transmit fails
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 1u);
+}
+
 // ----------------------------------------------------------------------
 // Tests: receive (software bus -> dataOut)
 // ----------------------------------------------------------------------

@@ -21,7 +21,9 @@ FPrimeCfs::CfsBridge bridge("bridge");
 bridge.init(QUEUE_DEPTH, INSTANCE_ID);
 
 // Create the SB pipe and subscribe to the APIDs to receive
-CFE_Status_t status = bridge.configure(PIPE_DEPTH, "MY_PIPE", /*paused=*/true);
+// Optionally pass wrapFprimeCommands=true to transmit F Prime command packets as valid cFS
+// command packets (secondary header flag + function code + checksum)
+CFE_Status_t status = bridge.configure(PIPE_DEPTH, "MY_PIPE", /*paused=*/true, /*wrapFprimeCommands=*/false);
 status = bridge.subscribe(ComCfg::Apid::FW_PACKET_COMMAND);
 
 // Optionally subscribe to native cFS messages (secondary header flag set). COMMAND sets the
@@ -89,9 +91,13 @@ cFS command secondary header `{U8 FunctionCode, U8 Checksum}` is inserted betwee
 and the F Prime command payload. The function code is the fixed
 `CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE` used for all F Prime passthrough commands, and the checksum
 is computed per `CFE_MSG` conventions (the XOR of every packet byte with 0xFF equals zero). Telemetry
-packets and packets that already carry a secondary header are transmitted unmodified. Downstream, an
-`FPrimeCfs::CfsRouter` excludes the secondary header before delivering the F Prime command bytes to
-the command dispatcher.
+packets and packets that already carry a secondary header are transmitted unmodified. The internal
+wrap storage is bounded by `CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE` (2048 bytes, well under the software
+bus limit `CFE_MISSION_SB_MAX_SB_MSG_SIZE`); a command packet whose wrapped size would exceed this
+bound is dropped with a logged error. Note that wrapping applies to every command-type packet
+without a secondary header regardless of APID, so the uplink path should only carry F Prime command
+APIDs intended for passthrough. Downstream, an `FPrimeCfs::CfsRouter` excludes the secondary header
+before delivering the F Prime command bytes to the command dispatcher.
 
 ### Receiving (cFS → F Prime)
 

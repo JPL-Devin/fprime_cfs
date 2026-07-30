@@ -35,7 +35,9 @@ constexpr FwSizeType CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET = 4;
 constexpr FwSizeType CFS_BRIDGE_CMD_SEC_HDR_SIZE = 2;
 //! Function code carried by F Prime passthrough commands wrapped as cFS command packets
 constexpr U8 CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE = 0;
-//! Maximum total size in bytes of a wrapped cFS command packet (primary header + secondary header + payload)
+//! Maximum total size in bytes of a wrapped cFS command packet (primary header + secondary header + payload).
+//! Sized to bound the component's internal wrap storage: large enough for the largest F Prime uplink command
+//! packet, and well under the software bus limit CFE_MISSION_SB_MAX_SB_MSG_SIZE (default 32768).
 constexpr FwSizeType CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE = 2048;
 
 class CfsBridge final : public CfsBridgeComponentBase
@@ -147,7 +149,7 @@ private:
     bool m_paused = true;  //!< Awaiting a comStatusIn success before sending the next deframed message
     bool m_flowControlled = false;  //!< When true, deframed messages are gated by comStatusIn signals
     bool m_wrapFprimeCommands = false;  //!< When true, transmit F Prime command packets as cFS command packets
-    alignas(CFE_MSG_Message_t) U8 m_wrapStorage[CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE];  //!< Storage for wrapped cFS command packets
+    alignas(CFE_MSG_Message_t) U8 m_wrapStorage[CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE] = {};  //!< Storage for wrapped cFS command packets
 };
 
 } // namespace FPrimeCfs

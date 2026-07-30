@@ -79,6 +79,15 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! With wrapping enabled, command packets too large to wrap are dropped
     void testTransmitWrapTooLarge();
 
+    //! Test wrapping a command packet whose wrapped size exactly fills the wrap storage
+    void testTransmitWrapExactBoundary();
+
+    //! Test wrapping the first packet of a multi-packet buffer without disturbing the following packet
+    void testTransmitWrapMultiplePackets();
+
+    //! Test software bus transmit failure on the wrapped command path
+    void testTransmitWrapFailure();
+
     // ----------------------------------------------------------------------
     // Tests: receive (software bus -> dataOut)
     // ----------------------------------------------------------------------

@@ -158,11 +158,20 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
         const U8 streamIdHigh = buffer_data[offset];
         const bool isCommand = (streamIdHigh & static_cast<U8>(CFS_BRIDGE_SPACE_PACKET_TYPE_MASK >> 8)) != 0;
         const bool hasSecHdr = (streamIdHigh & static_cast<U8>(CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK >> 8)) != 0;
+        if (this->m_wrapFprimeCommands and isCommand and (not hasSecHdr) and
+            ((packet_size + CFS_BRIDGE_CMD_SEC_HDR_SIZE) > CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE)) {
+            Fw::Logger::log("[ERROR] Cannot wrap %" PRI_FwSizeType " byte packet as a cFS command packet\n",
+                            packet_size);
+            offset += packet_size;
+            continue;
+        }
         CFE_Status_t status;
         if (this->m_wrapFprimeCommands and isCommand and (not hasSecHdr)) {
             // F Prime command space packet: wrap as a valid cFS command packet before transmission
             status = this->transmitWrappedCommand(&buffer_data[offset], packet_size);
         } else {
+            // Cast justified: software bus messages are complete CCSDS space packets and the cFS API takes them
+            // as CFE_MSG_Message_t
             CFE_MSG_Message_t* message_pointer = reinterpret_cast<CFE_MSG_Message_t*>(&buffer_data[offset]);
             status = CFE_SB_TransmitMsg(message_pointer, false);
         }
@@ -186,8 +195,8 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
 
 CFE_Status_t CfsBridge ::transmitWrappedCommand(const U8* packet, const FwSizeType size) {
     const FwSizeType wrappedSize = size + CFS_BRIDGE_CMD_SEC_HDR_SIZE;
+    // The caller validates sizes; this guard is defensive against future callers
     if ((size < CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE) or (wrappedSize > CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE)) {
-        Fw::Logger::log("[ERROR] Cannot wrap %" PRI_FwSizeType " byte packet as a cFS command packet\n", size);
         return CFE_SB_BAD_ARGUMENT;
     }
     U8* const wrapped = this->m_wrapStorage;
@@ -212,6 +221,7 @@ CFE_Status_t CfsBridge ::transmitWrappedCommand(const U8* packet, const FwSizeTy
         checksum ^= wrapped[i];
     }
     wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1] = checksum;
+    // Cast justified: m_wrapStorage is alignas(CFE_MSG_Message_t) and holds a complete space packet
     return CFE_SB_TransmitMsg(reinterpret_cast<CFE_MSG_Message_t*>(wrapped), false);
 }
 
