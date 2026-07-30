@@ -1,5 +1,5 @@
 // ======================================================================
-// 	itle  PollingTimer.cpp
+// \title  PollingTimer.cpp
 // \author mstarch
 // \brief  cpp file for PollingTimer component implementation class
 // ======================================================================
