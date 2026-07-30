@@ -42,6 +42,12 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! Subscribe maps APIDs to the expected command/telemetry message ids
     void testSubscribe();
 
+    //! Configure rejects pipe depths that would truncate in cFE's uint16 depth
+    void testConfigureDepthTooLarge();
+
+    //! SubscribeCfs maps APIDs to cFS command/telemetry message ids (secondary header flag set)
+    void testSubscribeCfs();
+
     //! Subscribe returns the software bus error on subscription failure
     void testSubscribeFailure();
 

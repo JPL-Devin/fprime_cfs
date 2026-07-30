@@ -28,6 +28,20 @@ TEST(Nominal, Subscribe) {
     tester.testSubscribe();
 }
 
+TEST(OffNominal, ConfigureDepthTooLarge) {
+    COMMENT("Configure rejects pipe depths that would truncate in cFE's uint16 depth");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-011");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testConfigureDepthTooLarge();
+}
+
+TEST(Nominal, SubscribeCfs) {
+    COMMENT("SubscribeCfs maps APIDs to cFS command/telemetry message ids with the secondary header flag set");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-010");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testSubscribeCfs();
+}
+
 TEST(OffNominal, SubscribeFailure) {
     COMMENT("Subscribe returns the software bus error on subscription failure");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-002");

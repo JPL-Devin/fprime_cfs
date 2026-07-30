@@ -33,6 +33,10 @@ CfsBridge ::CfsBridge(const char *const compName) : CfsBridgeComponentBase(compN
 CfsBridge ::~CfsBridge() {}
 
 CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth, const char* pipeName, const bool paused) {
+    // Pipe depth is a uint16 in cFE; reject depths that would silently truncate
+    if (pipeDepth > std::numeric_limits<uint16>::max()) {
+        return CFE_SB_BAD_ARGUMENT;
+    }
     CFE_Status_t status = CFE_SB_CreatePipe(&this->m_inputPipe, static_cast<uint16>(pipeDepth), pipeName);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = CONFIGURED;
