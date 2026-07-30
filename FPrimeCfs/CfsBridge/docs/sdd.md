@@ -24,6 +24,11 @@ bridge.init(QUEUE_DEPTH, INSTANCE_ID);
 CFE_Status_t status = bridge.configure(PIPE_DEPTH, "MY_PIPE", /*paused=*/true);
 status = bridge.subscribe(ComCfg::Apid::FW_PACKET_COMMAND);
 
+// Optionally subscribe to native cFS messages (secondary header flag set). COMMAND sets the
+// packet type bit (e.g. scheduler (SCH) wakeup messages); TELEMETRY leaves it clear (e.g.
+// housekeeping telemetry).
+status = bridge.subscribeCfs(ComCfg::Apid::CFS_SCH_TICK, FPrimeCfs::CfsBridge::CfsMessageType::COMMAND);
+
 // In the application's run loop:
 while (CFE_ES_RunLoop(&runStatus)) {
     if (bridge.process() == Fw::QueuedComponentBase::MSG_DISPATCH_EXIT) {
@@ -60,6 +65,8 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | FPRIMECFS-CFSBRIDGE-007 | When configured with flow control enabled, `CfsBridge` shall hold received messages while paused and shall release exactly one message per `comStatusIn` SUCCESS signal | Unit test |
 | FPRIMECFS-CFSBRIDGE-008 | `CfsBridge` shall emit a single `comStatusOut` SUCCESS (preroll) on the first `process()` call after subscription to open the downstream communication pipeline | Unit test |
 | FPRIMECFS-CFSBRIDGE-009 | `CfsBridge` shall return ownership of every buffer received on `dataIn` via `dataReturnOut` and shall emit a `comStatusOut` SUCCESS after every transmission attempt, regardless of outcome | Unit test |
+| FPRIMECFS-CFSBRIDGE-010 | `CfsBridge` shall subscribe to native cFS messages when `subscribeCfs()` is called, forming the message ID with the secondary header flag set and the packet type bit set for `CfsMessageType::COMMAND` and clear for `CfsMessageType::TELEMETRY` | Unit test |
+| FPRIMECFS-CFSBRIDGE-011 | `CfsBridge` shall reject a `configure()` pipe depth exceeding the cFE `uint16` pipe depth range with `CFE_SB_BAD_ARGUMENT` rather than silently truncating | Unit test |
 
 ## Design
 
@@ -117,3 +124,6 @@ Coverage: 100% lines, 100% functions.
 | 2026-07-22 | Initial SDD with requirements and unit tests |
 | 2026-07-22 | Emit received messages whole (space packets) for downstream deframing instead of deframing internally |
 | 2026-07-22 | Transmit complete space packets from `dataIn` as-is (one SB message per packet) instead of framing payloads; message IDs mirror space packet stream identifiers |
+| 2026-07-29 | Add `subscribeCfs()` and `CfsMessageType` for subscribing to native cFS command/telemetry messages (secondary header flag set) |
+| 2026-07-30 | Remove development-time subscription-success and message-received log output; operational error logging retained |
+| 2026-07-30 | Reject `configure()` pipe depths that would truncate in cFE's `uint16` pipe depth |

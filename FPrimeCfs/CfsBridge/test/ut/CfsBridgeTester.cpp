@@ -12,6 +12,8 @@ namespace FPrimeCfs {
 
 static const CFE_SB_MsgId_Atom_t CMD_MID_FOR_APID_0 = 0x1000;  // Space packet stream id: command type bit + APID 0
 static const CFE_SB_MsgId_Atom_t TLM_MID_FOR_APID_1 = 0x0001;  // Space packet stream id: telemetry, APID 1
+static const CFE_SB_MsgId_Atom_t CFS_CMD_MID_FOR_APID_0 = 0x1800;  // cFS command stream id: type bit + sec hdr flag + APID 0
+static const CFE_SB_MsgId_Atom_t CFS_TLM_MID_FOR_APID_1 = 0x0801;  // cFS telemetry stream id: sec hdr flag + APID 1
 
 static const FwSizeType HEADER_SIZE = CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE;
 
@@ -119,6 +121,27 @@ void CfsBridgeTester ::testSubscribe() {
     ASSERT_EQ(this->component.subscribe(ComCfg::Apid::FW_PACKET_TELEM), CFE_SUCCESS);
     ASSERT_EQ(CfeStub::state().subscribeCount, 2u);
     ASSERT_EQ(CfeStub::state().subscribeCalls[1].msgIdValue, TLM_MID_FOR_APID_1);
+}
+
+void CfsBridgeTester ::testConfigureDepthTooLarge() {
+    ASSERT_EQ(this->component.configure(static_cast<FwSizeType>(std::numeric_limits<uint16>::max()) + 1, "TEST_PIPE"),
+              CFE_SB_BAD_ARGUMENT);
+    // The pipe was never created
+    ASSERT_EQ(CfeStub::state().createPipeCount, 0u);
+}
+
+void CfsBridgeTester ::testSubscribeCfs() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE"), CFE_SUCCESS);
+    // COMMAND sets both the packet type bit and the secondary header flag
+    ASSERT_EQ(this->component.subscribeCfs(ComCfg::Apid::FW_PACKET_COMMAND, CfsBridge::CfsMessageType::COMMAND),
+              CFE_SUCCESS);
+    ASSERT_EQ(CfeStub::state().subscribeCount, 1u);
+    ASSERT_EQ(CfeStub::state().subscribeCalls[0].msgIdValue, CFS_CMD_MID_FOR_APID_0);
+    // TELEMETRY sets only the secondary header flag
+    ASSERT_EQ(this->component.subscribeCfs(ComCfg::Apid::FW_PACKET_TELEM, CfsBridge::CfsMessageType::TELEMETRY),
+              CFE_SUCCESS);
+    ASSERT_EQ(CfeStub::state().subscribeCount, 2u);
+    ASSERT_EQ(CfeStub::state().subscribeCalls[1].msgIdValue, CFS_TLM_MID_FOR_APID_1);
 }
 
 void CfsBridgeTester ::testSubscribeFailure() {
