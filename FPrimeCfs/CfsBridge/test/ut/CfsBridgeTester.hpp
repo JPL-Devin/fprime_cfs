@@ -70,6 +70,15 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! Residual bytes too small to form a primary header are dropped
     void testTransmitResidual();
 
+    //! With wrapping enabled, F Prime command packets are transmitted as valid cFS command packets
+    void testTransmitWrappedCommand();
+
+    //! With wrapping enabled, telemetry and secondary-header command packets pass through unmodified
+    void testTransmitWrapPassthrough();
+
+    //! With wrapping enabled, command packets too large to wrap are dropped
+    void testTransmitWrapTooLarge();
+
     // ----------------------------------------------------------------------
     // Tests: receive (software bus -> dataOut)
     // ----------------------------------------------------------------------

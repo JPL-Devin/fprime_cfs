@@ -232,6 +232,88 @@ void CfsBridgeTester ::testTransmitResidual() {
     this->assertTransmitted(0, TLM_MID_FOR_APID_1, payload, sizeof(payload));
 }
 
+void CfsBridgeTester ::testTransmitWrappedCommand() {
+    // Enable F Prime command wrapping: command packets are transmitted as valid cFS command packets
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, true), CFE_SUCCESS);
+
+    U8 payload[32];
+    this->fillRandom(payload, sizeof(payload));
+    U8 storage[64];
+    Fw::Buffer buffer(storage, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, CMD_MID_FOR_APID_0, payload, sizeof(payload)));
+    ComCfg::FrameContext context;
+
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 1u);
+    const CfeStub::TransmitCall& call = CfeStub::state().transmitCalls[0];
+    // The secondary header flag is set in the stream identifier
+    ASSERT_EQ(call.msgIdValue, CMD_MID_FOR_APID_0 | 0x0800);
+    // The packet grows by the 2-byte cFS command secondary header, reflected in the length field
+    ASSERT_EQ(call.totalSize, HEADER_SIZE + CFS_BRIDGE_CMD_SEC_HDR_SIZE + sizeof(payload));
+    ASSERT_EQ(call.payloadSize, CFS_BRIDGE_CMD_SEC_HDR_SIZE + sizeof(payload));
+    // The secondary header carries the F Prime passthrough function code, then the checksum
+    ASSERT_EQ(call.payload[0], CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE);
+    // The original payload follows the secondary header unmodified
+    ASSERT_EQ(std::memcmp(&call.payload[CFS_BRIDGE_CMD_SEC_HDR_SIZE], payload, sizeof(payload)), 0);
+    // The checksum is valid per CFE_MSG conventions: XOR of every packet byte with 0xFF equals zero
+    U8 checksum = 0xFF;
+    U8 header[HEADER_SIZE];
+    header[0] = static_cast<U8>(((CMD_MID_FOR_APID_0 | 0x0800) >> 8) & 0xFF);
+    header[1] = static_cast<U8>(CMD_MID_FOR_APID_0 & 0xFF);
+    header[2] = 0xC0;
+    header[3] = 0x00;
+    const FwSizeType lengthToken = sizeof(payload) + CFS_BRIDGE_CMD_SEC_HDR_SIZE - 1;
+    header[4] = static_cast<U8>((lengthToken >> 8) & 0xFF);
+    header[5] = static_cast<U8>(lengthToken & 0xFF);
+    for (FwSizeType i = 0; i < HEADER_SIZE; i++) {
+        checksum ^= header[i];
+    }
+    for (FwSizeType i = 0; i < call.payloadSize; i++) {
+        checksum ^= call.payload[i];
+    }
+    ASSERT_EQ(checksum, 0);
+}
+
+void CfsBridgeTester ::testTransmitWrapPassthrough() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, true), CFE_SUCCESS);
+
+    // Telemetry packets (type bit clear) are transmitted unmodified
+    U8 payload[16];
+    this->fillRandom(payload, sizeof(payload));
+    U8 storage[64];
+    Fw::Buffer buffer(storage, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, TLM_MID_FOR_APID_1, payload, sizeof(payload)));
+    ComCfg::FrameContext context;
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 1u);
+    this->assertTransmitted(0, TLM_MID_FOR_APID_1, payload, sizeof(payload));
+
+    // Command packets that already carry a secondary header are transmitted unmodified
+    const U16 cmdWithSecHdr = CMD_MID_FOR_APID_0 | 0x0800;
+    buffer.setData(storage);
+    buffer.setSize(this->makePacket(storage, cmdWithSecHdr, payload, sizeof(payload)));
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 2u);
+    this->assertTransmitted(1, cmdWithSecHdr, payload, sizeof(payload));
+}
+
+void CfsBridgeTester ::testTransmitWrapTooLarge() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, true), CFE_SUCCESS);
+
+    // A command packet whose wrapped size exceeds the wrap storage is dropped
+    const FwSizeType payloadSize = CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE - HEADER_SIZE - CFS_BRIDGE_CMD_SEC_HDR_SIZE + 1;
+    U8 storage[CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE + 64];
+    U8 payload[CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE + 64 - HEADER_SIZE];
+    this->fillRandom(payload, payloadSize);
+    Fw::Buffer buffer(storage, sizeof(storage));
+    buffer.setSize(this->makePacket(storage, CMD_MID_FOR_APID_0, payload, payloadSize));
+    ComCfg::FrameContext context;
+
+    // Buffer return and com status are still emitted; nothing is transmitted
+    this->sendDataIn(buffer, context);
+    ASSERT_EQ(CfeStub::state().transmitCount, 0u);
+}
+
 // ----------------------------------------------------------------------
 // Tests: receive (software bus -> dataOut)
 // ----------------------------------------------------------------------
