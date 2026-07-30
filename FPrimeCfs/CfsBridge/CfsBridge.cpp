@@ -33,7 +33,7 @@ CfsBridge ::CfsBridge(const char *const compName) : CfsBridgeComponentBase(compN
 CfsBridge ::~CfsBridge() {}
 
 CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth, const char* pipeName, const bool paused) {
-    CFE_Status_t status = CFE_SB_CreatePipe(&this->inputPipe, static_cast<uint16>(pipeDepth), pipeName);
+    CFE_Status_t status = CFE_SB_CreatePipe(&this->m_inputPipe, static_cast<uint16>(pipeDepth), pipeName);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = CONFIGURED;
     }
@@ -48,8 +48,8 @@ Fw::QueuedComponentBase::MsgDispatchStatus CfsBridge ::process() {
     if (status != Fw::QueuedComponentBase::MSG_DISPATCH_EXIT && this->m_configurationState == SUBSCRIBED) {
         // Preroll the com pipeline to allow downlink
         if (not this->m_prerolled and this->isConnected_comStatusOut_OutputPort(0)) {
-            Fw::Success status = Fw::Success::SUCCESS;
-            this->comStatusOut_out(0, status);
+            Fw::Success comStatus = Fw::Success::SUCCESS;
+            this->comStatusOut_out(0, comStatus);
             this->m_prerolled = true;
         }
 
@@ -61,10 +61,9 @@ Fw::QueuedComponentBase::MsgDispatchStatus CfsBridge ::process() {
 CFE_Status_t CfsBridge ::subscribe(const ComCfg::Apid::T apid) {
     FW_ASSERT(this->m_configurationState != UNCONFIGURED);
     CFE_SB_MsgId_t msgId = this->getCfsMessageId(apid);
-    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->inputPipe);
+    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->m_inputPipe);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = SUBSCRIBED;
-        Fw::Logger::log("[INFO] Successfully subscribed to message ID: 0x%08x\n", msgId.Value);
     }
     return status;
 }
@@ -77,10 +76,9 @@ CFE_Status_t CfsBridge ::subscribeCfs(const ComCfg::Apid::T apid, const CfsMessa
                      CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK |
                      ((type == CfsMessageType::COMMAND) ? CFS_BRIDGE_SPACE_PACKET_TYPE_MASK : 0);
     CFE_SB_MsgId_t msgId = CFE_SB_ValueToMsgId(message_id);
-    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->inputPipe);
+    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->m_inputPipe);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = SUBSCRIBED;
-        Fw::Logger::log("[INFO] Successfully subscribed to message ID: 0x%08x\n", message_id);
     }
     return status;
 }
@@ -106,9 +104,8 @@ void CfsBridge ::poll() {
     }
 
     CFE_SB_Buffer_t* buffer = nullptr;
-    CFE_Status_t status = CFE_SB_ReceiveBuffer(&buffer, this->inputPipe, CFE_SB_POLL);
+    CFE_Status_t status = CFE_SB_ReceiveBuffer(&buffer, this->m_inputPipe, CFE_SB_POLL);
     if (status == CFE_SUCCESS) {
-        Fw::Logger::log("[DEBUG] Received message!\n");
         CFE_MSG_Message_t* received_message = &buffer->Msg;
 
         // Software bus messages are external input: drop with an error, not an assert
@@ -142,7 +139,8 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
     while ((buffer_size - offset) >= CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE) {
         // CCSDS packet data length field is the number of payload bytes minus one
         const FwSizeType packet_size = CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1 +
-            ((static_cast<FwSizeType>(buffer_data[offset + 4]) << 8) | static_cast<FwSizeType>(buffer_data[offset + 5]));
+            ((static_cast<FwSizeType>(buffer_data[offset + CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET]) << 8) |
+             static_cast<FwSizeType>(buffer_data[offset + CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET + 1]));
         if (packet_size > (buffer_size - offset)) {
             Fw::Logger::log("[ERROR] Dropping truncated space packet: %" PRI_FwSizeType " bytes needed, %" PRI_FwSizeType " available\n",
                             packet_size, buffer_size - offset);

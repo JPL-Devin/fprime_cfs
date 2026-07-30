@@ -15,7 +15,7 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 extern "C" {
     #include "cfe_sb.h"   // for CFE_SB_MsgId_t
-};
+}
 #pragma GCC diagnostic pop
 
 namespace FPrimeCfs
@@ -29,6 +29,8 @@ constexpr U32 CFS_BRIDGE_SPACE_PACKET_APID_MASK = 0x07FF;
 constexpr U32 CFS_BRIDGE_SPACE_PACKET_TYPE_MASK = 0x1000;
 //! Mask of the secondary header flag within the space packet stream identifier
 constexpr U32 CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK = 0x0800;
+//! Byte offset of the big-endian 16-bit packet data length field within the space packet primary header
+constexpr FwSizeType CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET = 4;
 
 class CfsBridge final : public CfsBridgeComponentBase
 {
@@ -80,7 +82,7 @@ class CfsBridge final : public CfsBridgeComponentBase
     //! Process messages in the component's queue and the cFS software bus
     //!
     //! Use this method to drain the component's message queue and process a single message. This allows the actual
-    //! work of the handler to be performed on a designated thread. It will also poll the cFS softwar bus for one message.
+    //! work of the handler to be performed on a designated thread. It will also poll the cFS software bus for one message.
     //!
     //! Callers should continually call process() until it returns MSG_DISPATCH_EXIT indicating that the program
     //! is exiting.
@@ -118,7 +120,8 @@ private:
     //! Port to receive com status signals from the cFS bridge component.
     void comStatusIn_handler(FwIndexType portNum, //!< The port number
                              Fw::Success &status) override;
-    CFE_SB_PipeId_t inputPipe;
+
+    CFE_SB_PipeId_t m_inputPipe = {};  //!< Software bus pipe for receiving subscribed messages
 
     ConfigurationState m_configurationState = UNCONFIGURED;  //!< Tracks the configuration state of the component to ensure proper ordering of operations
     bool m_prerolled = false;  //!< Initial comStatusOut signal has been sent to enable downstream data flow

@@ -26,8 +26,6 @@ module FPrimeCfs {
     @                     |
     @                     |
     @         -------- CFS SB  ----------
-    @                                     
-    # Note: F Prime flavored lollipops are sweet!
     queued component CfsBridge {
         # The cFS bridge component acts as a "ComDriver" in that it receives messages from the cFS software bus and
         # passes them to the F Prime framework for deframing (e.g. by an Svc.Ccsds.SpacePacketDeframer) and routing.
