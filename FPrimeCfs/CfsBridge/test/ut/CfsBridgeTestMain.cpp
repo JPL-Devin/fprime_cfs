@@ -84,6 +84,48 @@ TEST(OffNominal, TransmitResidual) {
     tester.testTransmitResidual();
 }
 
+TEST(Nominal, TransmitWrappedCommand) {
+    COMMENT("With wrapping enabled, F Prime command packets are transmitted as valid cFS command packets");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-012");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitWrappedCommand();
+}
+
+TEST(Nominal, TransmitWrapPassthrough) {
+    COMMENT("With wrapping enabled, telemetry and secondary-header command packets pass through unmodified");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-012");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitWrapPassthrough();
+}
+
+TEST(OffNominal, TransmitWrapTooLarge) {
+    COMMENT("With wrapping enabled, command packets too large to wrap are dropped");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-012");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitWrapTooLarge();
+}
+
+TEST(Nominal, TransmitWrapExactBoundary) {
+    COMMENT("With wrapping enabled, a command packet exactly filling the wrap storage is transmitted");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-012");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitWrapExactBoundary();
+}
+
+TEST(Nominal, TransmitWrapMultiplePackets) {
+    COMMENT("With wrapping enabled, wrapping one packet of a multi-packet buffer does not disturb the next");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-012");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitWrapMultiplePackets();
+}
+
+TEST(OffNominal, TransmitWrapFailure) {
+    COMMENT("A failing software bus transmit on the wrapped command path still returns the buffer");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-012");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testTransmitWrapFailure();
+}
+
 TEST(Nominal, Receive) {
     COMMENT("Received software bus messages are sent whole out dataOut with a default context");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");

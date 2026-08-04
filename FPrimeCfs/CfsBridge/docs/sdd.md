@@ -21,7 +21,9 @@ FPrimeCfs::CfsBridge bridge("bridge");
 bridge.init(QUEUE_DEPTH, INSTANCE_ID);
 
 // Create the SB pipe and subscribe to the APIDs to receive
-CFE_Status_t status = bridge.configure(PIPE_DEPTH, "MY_PIPE", /*paused=*/true);
+// Optionally pass wrapFprimeCommands=true to transmit F Prime command packets as valid cFS
+// command packets (secondary header flag + function code + checksum)
+CFE_Status_t status = bridge.configure(PIPE_DEPTH, "MY_PIPE", /*paused=*/true, /*wrapFprimeCommands=*/false);
 status = bridge.subscribe(ComCfg::Apid::FW_PACKET_COMMAND);
 
 // Optionally subscribe to native cFS messages (secondary header flag set). COMMAND sets the
@@ -67,6 +69,7 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | FPRIMECFS-CFSBRIDGE-009 | `CfsBridge` shall return ownership of every buffer received on `dataIn` via `dataReturnOut` and shall emit a `comStatusOut` SUCCESS after every transmission attempt, regardless of outcome | Unit test |
 | FPRIMECFS-CFSBRIDGE-010 | `CfsBridge` shall subscribe to native cFS messages when `subscribeCfs()` is called, forming the message ID with the secondary header flag set and the packet type bit set for `CfsMessageType::COMMAND` and clear for `CfsMessageType::TELEMETRY` | Unit test |
 | FPRIMECFS-CFSBRIDGE-011 | `CfsBridge` shall reject a `configure()` pipe depth exceeding the cFE `uint16` pipe depth range with `CFE_SB_BAD_ARGUMENT` rather than silently truncating | Unit test |
+| FPRIMECFS-CFSBRIDGE-012 | When configured with F Prime command wrapping enabled, `CfsBridge` shall transmit each F Prime command space packet (packet type command, no secondary header) as a valid cFS command packet: secondary header flag set, length field adjusted, and a 2-byte cFS command secondary header (function code `CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE` and a valid cFS XOR checksum) inserted between the primary header and the payload; telemetry packets and packets already carrying a secondary header shall be transmitted unmodified, and packets too large to wrap shall be dropped with a logged error | Unit test |
 
 ## Design
 
@@ -79,6 +82,22 @@ software bus derives the message ID from the packet's stream identifier and copi
 Truncated packets and residual bytes are dropped with a logged error. Ownership of the incoming
 buffer is always returned via `dataReturnOut` and `comStatusOut` always reports SUCCESS, since the
 software bus does not support retry semantics.
+
+When `configure(..., wrapFprimeCommands=true)` is used, each F Prime command space packet (stream
+identifier with the packet type bit set and the secondary header flag clear) is wrapped as a valid
+cFS command packet before transmission: the packet is copied into internal storage, the secondary
+header flag is set in the primary header, the 16-bit length field is increased by two, and a 2-byte
+cFS command secondary header `{U8 FunctionCode, U8 Checksum}` is inserted between the primary header
+and the F Prime command payload. The function code is the fixed
+`CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE` used for all F Prime passthrough commands, and the checksum
+is computed per `CFE_MSG` conventions (the XOR of every packet byte with 0xFF equals zero). Telemetry
+packets and packets that already carry a secondary header are transmitted unmodified. The internal
+wrap storage is bounded by `CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE` (2048 bytes, well under the software
+bus limit `CFE_MISSION_SB_MAX_SB_MSG_SIZE`); a command packet whose wrapped size would exceed this
+bound is dropped with a logged error. Note that wrapping applies to every command-type packet
+without a secondary header regardless of APID, so the uplink path should only carry F Prime command
+APIDs intended for passthrough. Downstream, an `FPrimeCfs::CfsRouter` excludes the secondary header
+before delivering the F Prime command bytes to the command dispatcher.
 
 ### Receiving (cFS → F Prime)
 
@@ -127,3 +146,4 @@ Coverage: 100% lines, 100% functions.
 | 2026-07-29 | Add `subscribeCfs()` and `CfsMessageType` for subscribing to native cFS command/telemetry messages (secondary header flag set) |
 | 2026-07-30 | Remove development-time subscription-success and message-received log output; operational error logging retained |
 | 2026-07-30 | Reject `configure()` pipe depths that would truncate in cFE's `uint16` pipe depth |
+| 2026-07-30 | Optional F Prime command wrapping: transmit F Prime command packets as valid cFS command packets (secondary header flag, function code, checksum) |

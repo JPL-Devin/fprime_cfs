@@ -32,7 +32,10 @@ CfsBridge ::CfsBridge(const char *const compName) : CfsBridgeComponentBase(compN
 
 CfsBridge ::~CfsBridge() {}
 
-CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth, const char* pipeName, const bool paused) {
+CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth,
+                                   const char* pipeName,
+                                   const bool paused,
+                                   const bool wrapFprimeCommands) {
     // Pipe depth is a uint16 in cFE; reject depths that would silently truncate
     if (pipeDepth > std::numeric_limits<uint16>::max()) {
         return CFE_SB_BAD_ARGUMENT;
@@ -42,6 +45,7 @@ CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth, const char* pipeN
         this->m_configurationState = CONFIGURED;
     }
     this->m_flowControlled = paused;
+    this->m_wrapFprimeCommands = wrapFprimeCommands;
     return status;
 }
 
@@ -150,8 +154,27 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
                             packet_size, buffer_size - offset);
             break;
         }
-        CFE_MSG_Message_t* message_pointer = reinterpret_cast<CFE_MSG_Message_t*>(&buffer_data[offset]);
-        CFE_Status_t status = CFE_SB_TransmitMsg(message_pointer, false);
+        // The stream identifier's high byte carries the packet type bit (0x10) and secondary header flag (0x08)
+        const U8 streamIdHigh = buffer_data[offset];
+        const bool isCommand = (streamIdHigh & static_cast<U8>(CFS_BRIDGE_SPACE_PACKET_TYPE_MASK >> 8)) != 0;
+        const bool hasSecHdr = (streamIdHigh & static_cast<U8>(CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK >> 8)) != 0;
+        if (this->m_wrapFprimeCommands and isCommand and (not hasSecHdr) and
+            ((packet_size + CFS_BRIDGE_CMD_SEC_HDR_SIZE) > CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE)) {
+            Fw::Logger::log("[ERROR] Cannot wrap %" PRI_FwSizeType " byte packet as a cFS command packet\n",
+                            packet_size);
+            offset += packet_size;
+            continue;
+        }
+        CFE_Status_t status;
+        if (this->m_wrapFprimeCommands and isCommand and (not hasSecHdr)) {
+            // F Prime command space packet: wrap as a valid cFS command packet before transmission
+            status = this->transmitWrappedCommand(&buffer_data[offset], packet_size);
+        } else {
+            // Cast justified: software bus messages are complete CCSDS space packets and the cFS API takes them
+            // as CFE_MSG_Message_t
+            CFE_MSG_Message_t* message_pointer = reinterpret_cast<CFE_MSG_Message_t*>(&buffer_data[offset]);
+            status = CFE_SB_TransmitMsg(message_pointer, false);
+        }
         if (status != CFE_SUCCESS) {
             Fw::Logger::log("[ERROR] Failed to transmit message to software bus: 0x%08x\n", status);
         }
@@ -168,6 +191,38 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
         Fw::Success comStatus = Fw::Success::SUCCESS;
         this->comStatusOut_out(0, comStatus);
     }
+}
+
+CFE_Status_t CfsBridge ::transmitWrappedCommand(const U8* packet, const FwSizeType size) {
+    const FwSizeType wrappedSize = size + CFS_BRIDGE_CMD_SEC_HDR_SIZE;
+    // The caller validates sizes; this guard is defensive against future callers
+    if ((size < CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE) or (wrappedSize > CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE)) {
+        return CFE_SB_BAD_ARGUMENT;
+    }
+    U8* const wrapped = this->m_wrapStorage;
+    (void)std::memcpy(wrapped, packet, CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE);
+    // Set the secondary header flag in the stream identifier
+    wrapped[0] |= static_cast<U8>(CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK >> 8);
+    // The length field grows by the inserted secondary header size
+    const FwSizeType lengthToken =
+        ((static_cast<FwSizeType>(packet[CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET]) << 8) |
+         static_cast<FwSizeType>(packet[CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET + 1])) +
+        CFS_BRIDGE_CMD_SEC_HDR_SIZE;
+    wrapped[CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET] = static_cast<U8>((lengthToken >> 8) & 0xFF);
+    wrapped[CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET + 1] = static_cast<U8>(lengthToken & 0xFF);
+    // cFS command secondary header: function code, then checksum (computed below over the whole packet)
+    wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE] = CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE;
+    wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1] = 0;
+    (void)std::memcpy(&wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + CFS_BRIDGE_CMD_SEC_HDR_SIZE],
+                      &packet[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE], size - CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE);
+    // Checksum per CFE_MSG conventions: XOR of every packet byte with 0xFF must equal zero
+    U8 checksum = 0xFF;
+    for (FwSizeType i = 0; i < wrappedSize; i++) {
+        checksum ^= wrapped[i];
+    }
+    wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1] = checksum;
+    // Cast justified: m_wrapStorage is alignas(CFE_MSG_Message_t) and holds a complete space packet
+    return CFE_SB_TransmitMsg(reinterpret_cast<CFE_MSG_Message_t*>(wrapped), false);
 }
 
 void CfsBridge ::dataReturnIn_handler(FwIndexType portNum, Fw::Buffer &data, const ComCfg::FrameContext &context)
