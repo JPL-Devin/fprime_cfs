@@ -5,9 +5,7 @@
 ####
 register_fprime_module(
     AUTOCODER_INPUTS
-        "${CMAKE_CURRENT_LIST_DIR}/FPrimeCfsPorts.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/CfsTypes.fpp"
     DEPENDS
-        Fw_Buffer
-        Fw_Time
-        FPrimeCfs_Types
+        Fw_Types
 )
