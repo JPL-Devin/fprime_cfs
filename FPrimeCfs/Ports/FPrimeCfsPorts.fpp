@@ -21,4 +21,9 @@ module FPrimeCfs {
         sysTime: CfsTime    @< Time from the cFS telemetry secondary header
         ref data: Fw.Buffer @< Telemetry payload (data after the secondary header)
     )
+
+    @ Converts an F Prime time to a cFS system time (CFE_TIME_SysTime_t mirror)
+    port CfsTimeConvert(
+        $time: Fw.Time @< The F Prime time to convert
+    ) -> CfsTime
 }

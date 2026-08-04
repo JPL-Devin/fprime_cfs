@@ -14,12 +14,6 @@ module FPrimeCfs {
         FILE            @< Route to the file output port (Fw.BufferSend)
     }
 
-    @ cFS system time, mirroring CFE_TIME_SysTime_t
-    struct CfsTime {
-        seconds: U32     @< Seconds since epoch
-        subseconds: U32  @< Fractional seconds in 2^-32 second units
-    }
-
     @ An entry in the CfsRouter APID routing table
     struct CfsRouteEntry {
         apid: ComCfg.Apid         @< The APID to route
