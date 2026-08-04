@@ -61,6 +61,12 @@ module FPrimeCfs {
         @ cfsTelemetryOut, or unknownDataOut
         sync input port bufferReturnIn: Fw.BufferSend
 
+        @ Port for receiving back ownership of buffers sent on unknownDataOut from
+        @ receivers that return data with a context (e.g. a FPrimeCfs.CfsCmdRouter
+        @ dataReturnOut). The supplied context is ignored; the buffer is returned
+        @ on dataReturnOut with the context it was originally received with.
+        sync input port dataReturnIn: Svc.ComDataWithContext
+
         # ----------------------------------------------------------------------
         # Events
         # ----------------------------------------------------------------------

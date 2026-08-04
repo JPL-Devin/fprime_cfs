@@ -51,6 +51,9 @@ class CfsRouterTester final : public CfsRouterGTestBase {
     //! Unconfigured APIDs route to the unknown output with their context
     void testRouteUnknown();
 
+    //! Buffers returned via dataReturnIn are forwarded with their original context
+    void testDataReturnIn();
+
     //! cFS routes without a secondary header go to unknown with a warning event
     void testMissingSecondaryHeader();
 

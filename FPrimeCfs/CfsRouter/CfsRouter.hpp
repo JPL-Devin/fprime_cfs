@@ -51,6 +51,11 @@ class CfsRouter final : public CfsRouterComponentBase {
     //! Handler implementation for bufferReturnIn
     void bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) override;
 
+    //! Handler implementation for dataReturnIn
+    void dataReturnIn_handler(FwIndexType portNum,
+                              Fw::Buffer& data,
+                              const ComCfg::FrameContext& context) override;
+
     //! Handler implementation for fileBufferReturnIn
     void fileBufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) override;
 

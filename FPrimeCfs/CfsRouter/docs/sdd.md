@@ -53,7 +53,9 @@ unknown route).
 - F Prime command route: the packet data is copied into an `Fw::ComBuffer`; the incoming buffer is returned to the
   sender on `dataReturnOut` immediately. This is the only route that copies.
 - cFS command, cFS telemetry, and unknown routes: ownership of the (payload) buffer transfers to the receiver, and
-  returns on `bufferReturnIn`, which forwards it to `dataReturnOut`.
+  returns on `bufferReturnIn`, which forwards it to `dataReturnOut`. Receivers that return data together with a
+  context (such as a downstream `FPrimeCfs.CfsCmdRouter` `dataReturnOut`) may return buffers on `dataReturnIn`
+  instead; the supplied context is ignored and the original context is restored.
 - Buffers are always returned on `dataReturnOut` with the context they were received with. For pass-through routes
   the router records the buffer-to-context association in a map (capacity `CFS_ROUTER_MAX_PENDING_BUFFERS`); if the
   map is full, the packet is returned unrouted with a warning event.

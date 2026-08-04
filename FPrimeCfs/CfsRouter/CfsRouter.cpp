@@ -65,6 +65,14 @@ void CfsRouter ::fileBufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwB
     this->bufferReturnIn_handler(portNum, fwBuffer);
 }
 
+void CfsRouter ::dataReturnIn_handler(FwIndexType portNum,
+                                      Fw::Buffer& data,
+                                      const ComCfg::FrameContext& context) {
+    // The supplied context is ignored; the buffer is returned with the context
+    // it was originally received with, restored from the pending-buffer map
+    this->bufferReturnIn_handler(portNum, data);
+}
+
 // ----------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------

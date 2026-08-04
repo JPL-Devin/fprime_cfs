@@ -162,6 +162,21 @@ void CfsRouterTester ::testRouteUnknown() {
     ASSERT_EVENTS_SIZE(0);
 }
 
+void CfsRouterTester ::testDataReturnIn() {
+    U8 bytes[4] = {0x01, 0x02, 0x03, 0x04};
+    this->sendData(UNKNOWN_APID, false, bytes, sizeof(bytes));
+    ASSERT_from_unknownDataOut_SIZE(1);
+    Fw::Buffer buffer = this->fromPortHistory_unknownDataOut->at(0).data;
+    ASSERT_from_dataReturnOut_SIZE(0);
+    // Return the buffer with a different context; the original context is restored
+    ComCfg::FrameContext otherContext;
+    otherContext.set_apid(FPRIME_CMD_APID);
+    this->invoke_to_dataReturnIn(0, buffer, otherContext);
+    ASSERT_from_dataReturnOut_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), UNKNOWN_APID);
+    ASSERT_EVENTS_SIZE(0);
+}
+
 void CfsRouterTester ::testMissingSecondaryHeader() {
     U8 bytes[6] = {0x2A, 0xFF, 0x11, 0x22, 0x33, 0x44};
     // cFS command APID but no secondary header flag

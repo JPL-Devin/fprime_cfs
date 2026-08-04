@@ -43,6 +43,13 @@ The reusable components and topologies provided by F Prime can be used to constr
 | CfsSystemTime | Time component backed by cFS time services (CFE_TIME).        | [CfsSystemTime](./FPrimeCfs/CfsSystemTime/docs/sdd.md) |
 | PollingTimer | Rate group timer that is polled by the main program loop.       | [PollingTimer](./FPrimeCfs/PollingTimer/docs/sdd.md) |
 
+## Subtopologies
+
+| Subtopology | Purpose                                                          | SDD Link                                             |
+|-------------|------------------------------------------------------------------|------------------------------------------------------|
+| ComCfs      | Full cFS communications stack: app bridges, cFS secondary framers, space packet framing, cFS-aware routing, and the CfsBridge. | [ComCfs](./FPrimeCfs/Subtopologies/ComCfs/docs/sdd.md) |
+| CfsCore     | Core command and data handling with cFS choices: EvsMirror text logging, TlmPacketizer telemetry, CfsSystemTime time, SchAppDriver rate groups, optional EventManager. | [CfsCore](./FPrimeCfs/Subtopologies/CfsCore/docs/sdd.md) |
+
 ## Integration and Usage
 
 In order to use this library, you will need to add fprime and this library as librarues in your cFS `targets.cmake`:
