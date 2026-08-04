@@ -74,12 +74,8 @@ void CfsCmdRouter ::bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBu
 // ----------------------------------------------------------------------
 
 U8 CfsCmdRouter ::computeChecksumResidual(const Fw::Buffer& data, const ComCfg::FrameContext& context) {
-    // The cFS command checksum is computed over the complete space packet: XOR of every
-    // packet byte with 0xFF equals zero for a valid message (per CFE_MSG conventions).
-    // The primary header was consumed by the deframer, so reconstruct it from the
-    // context: PVN 0, packet type command (1), secondary header present (1), the APID,
-    // sequence flags unsegmented (0b11), the sequence count, and the length field
-    // (number of packet data bytes minus one).
+    // Per CFE_MSG conventions: XOR of every space packet byte with 0xFF equals zero when valid.
+    // The primary header was consumed upstream; reconstruct it (cFS command packet) from the context.
     const U16 apid = static_cast<U16>(context.get_apid());
     const U16 sequenceCount = context.get_sequenceCount();
     const FwSizeType lengthToken = data.getSize() - 1;

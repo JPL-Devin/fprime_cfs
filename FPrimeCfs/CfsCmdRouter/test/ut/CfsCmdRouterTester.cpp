@@ -44,9 +44,8 @@ CfsCmdRouterTester ::~CfsCmdRouterTester() {}
 // ----------------------------------------------------------------------
 
 void CfsCmdRouterTester ::setValidChecksum(ComCfg::Apid::T apid, U16 sequenceCount, U8* bytes, FwSizeType size) {
-    // Reproduce the checksum the sender computes over the complete space packet:
-    // reconstructed primary header, then the packet data with the checksum byte zeroed.
-    // XOR of every byte with 0xFF must equal zero for a valid message.
+    // Set the checksum byte so the XOR of every packet byte (reconstructed primary
+    // header plus data) with 0xFF equals zero.
     bytes[1] = 0;
     const FwSizeType lengthToken = size - 1;
     U8 checksum = 0xFF;
