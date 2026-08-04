@@ -86,7 +86,7 @@ void CfsCmdRouterTester ::testRouteCom() {
     // Message copied out without the 2-byte secondary header
     ASSERT_from_comOut_SIZE(1);
     const Fw::ComBuffer& com = this->fromPortHistory_comOut->at(0).data;
-    ASSERT_EQ(com.getBuffLength(), sizeof(bytes) - CFS_CMD_ROUTER_SEC_HDR_SIZE);
+    ASSERT_EQ(com.getSize(), sizeof(bytes) - CFS_CMD_ROUTER_SEC_HDR_SIZE);
     ASSERT_EQ(std::memcmp(com.getBuffAddr(), &bytes[CFS_CMD_ROUTER_SEC_HDR_SIZE],
                           sizeof(bytes) - CFS_CMD_ROUTER_SEC_HDR_SIZE),
               0);
