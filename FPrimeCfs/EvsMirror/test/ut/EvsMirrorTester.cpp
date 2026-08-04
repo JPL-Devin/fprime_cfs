@@ -29,6 +29,8 @@ EvsMirrorTester ::~EvsMirrorTester() {
 // ----------------------------------------------------------------------
 
 void EvsMirrorTester ::testMirror() {
+    CountingLogger logger;
+    Fw::Logger::registerLogger(&logger);
     const U32 iterations = STest::Pick::lowerUpper(1, 25);
     for (U32 i = 0; i < iterations; i++) {
         CfeStub::reset();
@@ -43,7 +45,9 @@ void EvsMirrorTester ::testMirror() {
         ASSERT_EQ(call.eventId, static_cast<uint16>(id));
         ASSERT_EQ(call.eventType, CFE_EVS_EventType_ERROR);
         ASSERT_STREQ(call.text, text.toChar());
+        ASSERT_EQ(logger.messageCount, 0u);
     }
+    Fw::Logger::registerLogger(nullptr);
 }
 
 void EvsMirrorTester ::testSeverityMapping() {
@@ -72,6 +76,8 @@ void EvsMirrorTester ::testSeverityMapping() {
 }
 
 void EvsMirrorTester ::testEvsFailure() {
+    CountingLogger logger;
+    Fw::Logger::registerLogger(&logger);
     CfeStub::state().sendEventStatus = CFE_EVS_APP_NOT_REGISTERED;
 
     const FwEventIdType id = static_cast<FwEventIdType>(STest::Pick::any());
@@ -79,23 +85,26 @@ void EvsMirrorTester ::testEvsFailure() {
     this->sendTextEvent(id, Fw::LogSeverity::ACTIVITY_LO, text);
 
     ASSERT_EQ(CfeStub::state().sendEventCount, 1u);
+    // The EVS failure is reported through Fw::Logger
+    ASSERT_EQ(logger.messageCount, 1u);
+    Fw::Logger::registerLogger(nullptr);
 }
 
 // ----------------------------------------------------------------------
 // Helper functions
 // ----------------------------------------------------------------------
 
-void EvsMirrorTester ::sendTextEvent(FwEventIdType id, const Fw::LogSeverity& severity, Fw::TextLogString& text) {
-    char buffer[32];
+void EvsMirrorTester ::sendTextEvent(FwEventIdType id, const Fw::LogSeverity& severity, Fw::TextLogString& generatedText) {
+    char buffer[32] = {0};
     const U32 length = STest::Pick::lowerUpper(1, sizeof(buffer) - 1);
     for (U32 i = 0; i < length; i++) {
         buffer[i] = static_cast<char>(STest::Pick::lowerUpper('a', 'z'));
     }
     buffer[length] = '\0';
-    text = buffer;
+    generatedText = buffer;
 
     Fw::Time timeTag(STest::Pick::any(), STest::Pick::lowerUpper(0, 999999));
-    Fw::TextLogString sentText = text;
+    Fw::TextLogString sentText = generatedText;
     this->invoke_to_TextLogger(0, id, timeTag, severity, sentText);
 }
 

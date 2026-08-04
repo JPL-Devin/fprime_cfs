@@ -121,7 +121,9 @@ void CfsCmdRouterTester ::testRouteBuffer() {
     // Return the buffer; it is forwarded to dataReturnOut
     this->invoke_to_bufferReturnIn(0, payload);
     ASSERT_from_dataReturnOut_SIZE(1);
-    // The buffer is returned with the context it was received with
+    // The original buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getSize(), sizeof(bytes));
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), TEST_APID);
     ASSERT_EVENTS_SIZE(0);
 }
@@ -138,6 +140,7 @@ void CfsCmdRouterTester ::testRouteUnknown() {
     this->invoke_to_bufferReturnIn(0, buffer);
     ASSERT_from_dataReturnOut_SIZE(1);
     // The buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), TEST_APID);
     ASSERT_EVENTS_SIZE(0);
 }

@@ -55,8 +55,16 @@ event connections instance CfsCore.events   # SubtopologyWithEvents only
 | `schBufferReturnOut` | `Subtopology` | out | Ownership return for buffers received on `cfsCommandIn` |
 | `cycleOut` | `Subtopology` | out | One tick per scheduler message (connect to a `Svc.RateGroupDriver`) |
 | `cfsTimeConvert` | `Subtopology` | in | F Prime to cFS time conversion |
+| `fatalReceive` | `Subtopology` | in | FATAL announcements into the fatal handler |
 | `eventsPktSend` | `SubtopologyWithEvents` | out | Event packets from the EventManager |
 | `eventsRun` | `SubtopologyWithEvents` | in | EventManager scheduling |
+
+## Fatal handling
+
+`SubtopologyWithEvents` connects `events.FatalAnnounce` to `fatalHandler.FatalReceive` internally. The base
+`Subtopology` omits the `Svc.EventManager`, so deployments using it must route their FATAL announcement source
+(e.g. their own event manager or fatal announcer) to the exported `fatalReceive` port; otherwise FATAL events
+will not reach the fatal handler.
 
 ## Configuration
 
@@ -64,4 +72,6 @@ event connections instance CfsCore.events   # SubtopologyWithEvents only
 `Svc.TlmPacketizer` requires a packet list to be set before use; projects override
 `CfsCoreConfig/CfsCoreTlmConfig.fpp` (via `register_fprime_config` `CONFIGURATION_OVERRIDES`) to add a
 `configComponents` phase calling `setPacketList` with their deployment's generated packet list. See the notes in
-that file for an example.
+that file for an example. The default (unoverridden) configuration sets an empty packet list so that a deployment
+missing the override degrades gracefully (no telemetry packets downlinked) instead of asserting on the first
+telemetry write.

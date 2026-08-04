@@ -15,6 +15,11 @@ module ComCfsConfig {
         constant aggregator = 30
     }
 
+    # cFS bridge constants
+    module Bridge {
+        constant pipeDepth = 10
+    }
+
     # Buffer management constants
     module BuffMgr {
         constant commsBuffSize      = 2048

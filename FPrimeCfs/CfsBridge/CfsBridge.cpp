@@ -144,7 +144,11 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
     U8* const buffer_data = data.getData();
     const FwSizeType buffer_size = data.getSize();
     FwSizeType offset = 0;
-    while ((buffer_size - offset) >= CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE) {
+    // Each complete packet is at least header + 1 payload byte, bounding the packet count
+    const FwSizeType max_packets = buffer_size / (CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1);
+    for (FwSizeType packet_count = 0;
+         (packet_count < max_packets) && ((buffer_size - offset) >= CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE);
+         packet_count++) {
         // CCSDS packet data length field is the number of payload bytes minus one
         const FwSizeType packet_size = CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1 +
             ((static_cast<FwSizeType>(buffer_data[offset + CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET]) << 8) |
@@ -228,6 +232,11 @@ CFE_Status_t CfsBridge ::transmitWrappedCommand(const U8* packet, const FwSizeTy
 void CfsBridge ::dataReturnIn_handler(FwIndexType portNum, Fw::Buffer &data, const ComCfg::FrameContext &context)
 {
     // cFS does not return messages explicitly
+}
+
+void CfsBridge ::schedIn_handler(FwIndexType portNum, U32 context)
+{
+    (void)this->process();
 }
 
 void CfsBridge ::comStatusIn_handler(FwIndexType portNum, Fw::Success &status)

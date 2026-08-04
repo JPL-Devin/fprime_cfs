@@ -84,3 +84,4 @@ unknown route).
 | FPRIMECFS-CFSROUTER-013 | CfsRouter shall accept command responses on `cmdResponseIn` as a no-op. | Unit test |
 | FPRIMECFS-CFSROUTER-014 | CfsRouter shall return every buffer on `dataReturnOut` with the context it was received with. | Unit test |
 | FPRIMECFS-CFSROUTER-015 | CfsRouter shall route messages whose APID is configured as `FILE` to the file output port, transferring buffer ownership to the receiver and returning ownership to the sender only after the buffer is returned on `fileBufferReturnIn`. | Unit test |
+| FPRIMECFS-CFSROUTER-016 | When a buffer is returned on `dataReturnIn` or `bufferReturnIn`, CfsRouter shall restore and return the original buffer (pointer and size) it was tracked with; untracked buffers shall be forwarded as-is with the supplied (or default) context. | Unit test |

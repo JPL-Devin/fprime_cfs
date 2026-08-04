@@ -22,8 +22,25 @@ module CfsCore {
     #     );
     #     """
     # }
+    # The default (unoverridden) instance sets an empty packet list so that a
+    # deployment missing the override degrades gracefully (no packets downlinked)
+    # instead of asserting on the first telemetry write.
     instance tlmSend: Svc.TlmPacketizer base id CfsCoreConfig.BASE_ID + 0x01000 \
         queue size CfsCoreConfig.QueueSizes.tlmSend \
         stack size CfsCoreConfig.StackSizes.tlmSend \
-        priority CfsCoreConfig.Priorities.tlmSend
+        priority CfsCoreConfig.Priorities.tlmSend \
+    {
+        phase Fpp.ToCpp.Phases.configObjects """
+        Svc::TlmPacketizerPacketList packetList = {{nullptr}, 0};
+        Svc::TlmPacketizerPacket omittedChannels = {nullptr, 0, 0, 0};
+        """
+
+        phase Fpp.ToCpp.Phases.configComponents """
+        CfsCore::tlmSend.setPacketList(
+            ConfigObjects::CfsCore_tlmSend::packetList,
+            ConfigObjects::CfsCore_tlmSend::omittedChannels,
+            0
+        );
+        """
+    }
 }

@@ -21,8 +21,8 @@ The `fprime_cfs` library is designed to allow F Prime implementations of cFS app
 ```mermaid
 flowchart LR
     subgraph fprime["F Prime App"]
-        custom["Custom Component(s)"] <--> ccsds["CCSDS Subtopology"]
-        cdh["CDH Subtopology"] <--> ccsds
+        custom["Custom Component(s)"] <--> ccsds["ComCfs Subtopology"]
+        cdh["CfsCore Subtopology"] <--> ccsds
         fpcomp["F Prime Component(s)"] <--> cdh
         custom <--> cdh
         ccsds <--> cfs((CfsBridge))
@@ -38,8 +38,13 @@ The reusable components and topologies provided by F Prime can be used to constr
 | Component    | Purpose                                                         | SDD Link                                             |
 |--------------|-----------------------------------------------------------------|------------------------------------------------------|
 | CfsBridge    | Expose access to the cFS messaging bus as an F Prime Component. | [CfsBridge](./FPrimeCfs/CfsBridge/docs/sdd.md)       |
-| EvsMirror    | Text logger replacement publishing F Prime events to cFS Event Services (EVS). | [EvsMirror](./FPrimeCfs/EvsMirror/docs/sdd.md)  |
+| CfsAppBridge | Route F Prime com data toward a destination cFS application's APID. | [CfsAppBridge](./FPrimeCfs/CfsAppBridge/docs/sdd.md) |
+| CfsCmdFramer | Secondary framer applying the cFS command secondary header.     | [CfsCmdFramer](./FPrimeCfs/CfsCmdFramer/docs/sdd.md) |
+| CfsTlmFramer | Secondary framer applying the cFS telemetry secondary header.   | [CfsTlmFramer](./FPrimeCfs/CfsTlmFramer/docs/sdd.md) |
+| CfsRouter    | Route deframed space packets by APID to command, telemetry, and file consumers. | [CfsRouter](./FPrimeCfs/CfsRouter/docs/sdd.md) |
 | CfsCmdRouter | Route cFS command messages to consumers by function code.       | [CfsCmdRouter](./FPrimeCfs/CfsCmdRouter/docs/sdd.md) |
+| EvsMirror    | Text logger replacement publishing F Prime events to cFS Event Services (EVS). | [EvsMirror](./FPrimeCfs/EvsMirror/docs/sdd.md)  |
+| SchAppDriver | Drive F Prime rate groups from cFS scheduler (SCH) messages.    | [SchAppDriver](./FPrimeCfs/SchAppDriver/docs/sdd.md) |
 | CfsSystemTime | Time component backed by cFS time services (CFE_TIME).        | [CfsSystemTime](./FPrimeCfs/CfsSystemTime/docs/sdd.md) |
 | PollingTimer | Rate group timer that is polled by the main program loop.       | [PollingTimer](./FPrimeCfs/PollingTimer/docs/sdd.md) |
 
@@ -65,6 +70,5 @@ This will integrate the library into the cFS build and make the targets availabl
 This library still needs to demonstrate how to subscribe to cFS messages that aren't strictly commands (e.g. telemetry) and how to rout these messages.
 
 Unsupported features:
-1. Unit-Tests
-2. Cross-compilation to other F Prime platforms
+1. Cross-compilation to other F Prime platforms
 

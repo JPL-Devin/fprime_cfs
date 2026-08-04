@@ -107,7 +107,9 @@ void CfsRouterTester ::testRouteCfsCommand() {
     // Return the buffer; it is forwarded to dataReturnOut
     this->invoke_to_bufferReturnIn(0, payload);
     ASSERT_from_dataReturnOut_SIZE(1);
-    // The buffer is returned with the context it was received with
+    // The original buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getSize(), sizeof(bytes));
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), CFS_CMD_APID);
     ASSERT_EVENTS_SIZE(0);
 }
@@ -126,7 +128,9 @@ void CfsRouterTester ::testRouteCfsTelemetry() {
     ASSERT_from_dataReturnOut_SIZE(0);
     this->invoke_to_bufferReturnIn(0, payload);
     ASSERT_from_dataReturnOut_SIZE(1);
-    // The buffer is returned with the context it was received with
+    // The original buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getSize(), sizeof(bytes));
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), CFS_TLM_APID);
     ASSERT_EVENTS_SIZE(0);
 }
@@ -158,6 +162,7 @@ void CfsRouterTester ::testRouteUnknown() {
     this->invoke_to_bufferReturnIn(0, buffer);
     ASSERT_from_dataReturnOut_SIZE(1);
     // The buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), UNKNOWN_APID);
     ASSERT_EVENTS_SIZE(0);
 }
@@ -173,7 +178,21 @@ void CfsRouterTester ::testDataReturnIn() {
     otherContext.set_apid(FPRIME_CMD_APID);
     this->invoke_to_dataReturnIn(0, buffer, otherContext);
     ASSERT_from_dataReturnOut_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), UNKNOWN_APID);
+    ASSERT_EVENTS_SIZE(0);
+}
+
+void CfsRouterTester ::testDataReturnInUntracked() {
+    // A buffer that was never tracked is returned as-is with the supplied context
+    U8 bytes[4] = {0x0A, 0x0B, 0x0C, 0x0D};
+    Fw::Buffer buffer(bytes, sizeof(bytes));
+    ComCfg::FrameContext context;
+    context.set_apid(FPRIME_CMD_APID);
+    this->invoke_to_dataReturnIn(0, buffer, context);
+    ASSERT_from_dataReturnOut_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), FPRIME_CMD_APID);
     ASSERT_EVENTS_SIZE(0);
 }
 

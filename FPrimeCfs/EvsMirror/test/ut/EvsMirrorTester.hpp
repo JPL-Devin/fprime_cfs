@@ -8,6 +8,7 @@
 
 #include "FPrimeCfs/EvsMirror/EvsMirror.hpp"
 #include "FPrimeCfs/EvsMirror/EvsMirrorGTestBase.hpp"
+#include "Fw/Logger/Logger.hpp"
 
 namespace FPrimeCfs {
 
@@ -54,8 +55,18 @@ class EvsMirrorTester final : public EvsMirrorGTestBase {
     // Helper functions
     // ----------------------------------------------------------------------
 
-    //! Send a text event with the given ID and severity and random text
-    void sendTextEvent(FwEventIdType id, const Fw::LogSeverity& severity, Fw::TextLogString& text);
+    //! Logger counting Fw::Logger messages for assertions on error logging
+    class CountingLogger final : public Fw::Logger {
+      public:
+        U32 messageCount = 0;
+
+      protected:
+        void writeMessage(const Fw::ConstStringBase& message) override { this->messageCount++; }
+    };
+
+    //! Send a text event with the given ID and severity; fills generatedText with
+    //! the random text that was sent, for later assertions
+    void sendTextEvent(FwEventIdType id, const Fw::LogSeverity& severity, Fw::TextLogString& generatedText);
 
     //! Connect ports
     void connectPorts();

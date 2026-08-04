@@ -397,6 +397,21 @@ void CfsBridgeTester ::testReceive() {
     ASSERT_EQ(outContext, defaultContext);
 }
 
+void CfsBridgeTester ::testSchedIn() {
+    this->configureAndSubscribe(ComCfg::Apid::FW_PACKET_COMMAND);
+
+    U8 payload[16];
+    this->fillRandom(payload, sizeof(payload));
+    this->clearHistory();
+    CFE_SB_MsgId_Atom_t msgIdValue = 0x1000 | ComCfg::Apid::FW_PACKET_COMMAND;
+    CfeStub::queueMessage(msgIdValue, payload, sizeof(payload));
+
+    // One schedIn tick drains the queue and polls the software bus once
+    this->invoke_to_schedIn(0, 0);
+    ASSERT_from_dataOut_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_dataOut->at(0).data.getSize(), HEADER_SIZE + sizeof(payload));
+}
+
 void CfsBridgeTester ::testPreroll() {
     this->configureAndSubscribe(ComCfg::Apid::FW_PACKET_COMMAND);
     this->clearHistory();

@@ -32,6 +32,7 @@ extern "C" CFE_Status_t CFE_EVS_SendEvent(uint16 EventID, uint16 EventType, cons
         (void)vsnprintf(call.text, sizeof call.text, Spec, args);
         va_end(args);
     }
+    // Counts every call; only the first STUB_MAX_ENTRIES calls are recorded in sendEventCalls
     s.sendEventCount++;
     return s.sendEventStatus;
 }

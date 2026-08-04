@@ -122,6 +122,11 @@ module CfsCore {
 
         @ Input port converting an F Prime time to a cFS system time
         port cfsTimeConvert = cfsTime.cfsTimeConvert
+
+        @ Input port delivering FATAL announcements to the fatal handler. In the base
+        @ Subtopology (no Svc.EventManager) deployments must route their FATAL source here;
+        @ SubtopologyWithEvents wires events.FatalAnnounce to the fatal handler internally.
+        port fatalReceive = fatalHandler.FatalReceive
     } # end Subtopology
 
     @ Subtopology plus the optional Svc.EventManager

@@ -12,7 +12,21 @@ module ComCfs {
     # Queued Components
     # ----------------------------------------------------------------------
     instance cfsBridge: FPrimeCfs.CfsBridge base id ComCfsConfig.BASE_ID + 0x01000 \
-        queue size ComCfsConfig.QueueSizes.cfsBridge
+        queue size ComCfsConfig.QueueSizes.cfsBridge \
+    {
+        phase Fpp.ToCpp.Phases.configComponents """
+        {
+            CFE_Status_t status = ComCfs::cfsBridge.configure(ComCfsConfig::Bridge::pipeDepth);
+            if (status != CFE_SUCCESS) {
+                Fw::Logger::log("[ERROR] Failed to configure ComCfs::cfsBridge: 0x%08x\\n", status);
+            }
+            status = ComCfs::cfsBridge.subscribe(ComCfs::BridgeConfig::uplinkApid);
+            if (status != CFE_SUCCESS) {
+                Fw::Logger::log("[ERROR] Failed to subscribe ComCfs::cfsBridge to uplink commands: 0x%08x\\n", status);
+            }
+        }
+        """
+    }
 
     # ----------------------------------------------------------------------
     # Passive Components
@@ -227,5 +241,14 @@ module ComCfs {
 
         @ Input port triggering commsBufferManager telemetry output
         port bufferManagerSchedIn = commsBufferManager.schedIn
+
+        @ Rate-group input driving the CfsBridge: each tick drains its message queue
+        @ and polls the cFS software bus once. Deployments must drive this port (or
+        @ call cfsBridge.process() from a dedicated loop) for the bridge to operate.
+        port cfsBridgeSchedIn = cfsBridge.schedIn
+
+        @ Input port releasing the CfsBridge uplink flow control (required when
+        @ cfsBridge is configured with paused = true)
+        port cfsBridgeComStatusIn = cfsBridge.comStatusIn
     } # end Subtopology
 } # end ComCfs

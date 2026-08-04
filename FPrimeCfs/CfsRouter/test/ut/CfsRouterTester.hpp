@@ -54,6 +54,9 @@ class CfsRouterTester final : public CfsRouterGTestBase {
     //! Buffers returned via dataReturnIn are forwarded with their original context
     void testDataReturnIn();
 
+    //! Untracked buffers returned via dataReturnIn are forwarded with the supplied context
+    void testDataReturnInUntracked();
+
     //! cFS routes without a secondary header go to unknown with a warning event
     void testMissingSecondaryHeader();
 

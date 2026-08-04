@@ -36,6 +36,11 @@ Two `FPrimeCfs.CfsAppBridge` instances feed the two cFS secondary framers:
 Both secondary framers feed the `Svc.Ccsds.SpacePacketFramer`, which completes the CCSDS space packet and passes it
 through the `Svc.ComAggregator` to the `FPrimeCfs.CfsBridge`, which publishes it on the cFS software bus.
 
+Only the command framer's `dataReturnIn` is connected to the space packet framer's return path: both secondary
+framers allocate from and deallocate to the same shared buffer pool (`commsBufferManager`), so either framer can
+return a buffer allocated by the other. Projects overriding the buffer allocation must preserve this shared-pool
+invariant.
+
 `cmdBridge` is configured with the command APID `ComCfs::BridgeConfig::commandApid` defined in
 `ComCfsConfig/ComCfsSubtopologyConfig.cpp`. Projects override the configuration module
 (`register_fprime_config` `CONFIGURATION_OVERRIDES`) to supply the command message ID APID of the destination cFS
@@ -48,6 +53,18 @@ packets to the `Svc.Ccsds.SpacePacketDeframer`. Deframed packets are routed by A
 APIDs without a configured route (including this application's own command message ID by default) flow to the
 `FPrimeCfs.CfsCmdRouter`, which routes by cFS command function code ahead of commanding. Both routers' route tables
 are statically configured in their respective configuration modules (`CfsRouterConfig`, `CfsCmdRouterConfig`).
+
+## CfsBridge configuration and scheduling
+
+The `cfsBridge` instance is configured during the `configComponents` phase: it creates its software bus pipe with
+depth `ComCfsConfig::Bridge::pipeDepth` and subscribes to the uplink command APID
+`ComCfs::BridgeConfig::uplinkApid` (defined in `ComCfsConfig/ComCfsSubtopologyConfig.cpp`; projects override the
+configuration module to supply this application's command message ID and any additional subscriptions).
+
+The bridge is a queued component: deployments must drive the exported `cfsBridgeSchedIn` port from a rate group
+(each tick drains the bridge's message queue and polls the software bus once) or call `cfsBridge.process()` from a
+dedicated loop. When the bridge is configured with `paused = true`, the exported `cfsBridgeComStatusIn` port must
+be connected to release uplink flow control.
 
 ## Exported ports
 
@@ -71,6 +88,8 @@ are statically configured in their respective configuration modules (`CfsRouterC
 | `cmdRouterBufferReturnIn` | in | Ownership return for `cmdRouterBufferOut` / `cmdRouterUnknownDataOut` buffers |
 | `aggregatorTimeout` | in | Rate-group driven timeout flushing the aggregator |
 | `bufferManagerSchedIn` | in | Rate-group driven buffer manager telemetry |
+| `cfsBridgeSchedIn` | in | Rate-group tick driving the CfsBridge queue and software bus poll |
+| `cfsBridgeComStatusIn` | in | Releases CfsBridge uplink flow control (required when configured paused) |
 
 ## Example usage
 
@@ -91,6 +110,12 @@ topology MyApp {
 
     connections Downlink {
         CfsCore.Subtopology.tlmSendPktSend[0] -> ComCfs.Subtopology.comIn[0]
+    }
+
+    connections RateGroups {
+        rateGroup1.RateGroupMemberOut[0] -> ComCfs.Subtopology.aggregatorTimeout
+        rateGroup1.RateGroupMemberOut[1] -> ComCfs.Subtopology.bufferManagerSchedIn
+        rateGroup1.RateGroupMemberOut[2] -> ComCfs.Subtopology.cfsBridgeSchedIn
     }
 
     connections Time {

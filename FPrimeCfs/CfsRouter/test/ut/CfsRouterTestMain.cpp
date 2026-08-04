@@ -63,8 +63,16 @@ TEST(Nominal, RouteUnknown) {
 
 TEST(Nominal, DataReturnIn) {
     COMMENT("Buffers returned via dataReturnIn are forwarded on dataReturnOut with the original context");
+    REQUIREMENT("FPRIMECFS-CFSROUTER-016");
     FPrimeCfs::CfsRouterTester tester;
     tester.testDataReturnIn();
+}
+
+TEST(Nominal, DataReturnInUntracked) {
+    COMMENT("Untracked buffers returned via dataReturnIn are forwarded with the supplied context");
+    REQUIREMENT("FPRIMECFS-CFSROUTER-016");
+    FPrimeCfs::CfsRouterTester tester;
+    tester.testDataReturnInUntracked();
 }
 
 TEST(OffNominal, MissingSecondaryHeader) {

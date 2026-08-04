@@ -10,6 +10,7 @@
 #include "FPrimeCfs/CfsRouter/CfsRouter_CfsRouteTableArrayAc.hpp"
 #include "CfsRouterConfig/FppConstantsAc.hpp"
 #include "Fw/DataStructures/ArrayMap.hpp"
+#include "Os/Mutex.hpp"
 
 namespace FPrimeCfs {
 
@@ -69,9 +70,22 @@ class CfsRouter final : public CfsRouterComponentBase {
     //! Return the incoming buffer to the sender with the context it was received with
     void returnData(Fw::Buffer& data, const ComCfg::FrameContext& context);
 
-    //! Track an outgoing pass-through buffer so its context can be restored on return.
-    //! On failure the buffer must not be routed.
-    Fw::Success trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context);
+    //! Record of an outstanding pass-through transfer: the buffer originally received
+    //! on dataIn and the context it was received with, keyed by the outgoing payload pointer
+    struct PendingReturn {
+        Fw::Buffer original;            //!< Buffer as received on dataIn
+        ComCfg::FrameContext context;   //!< Context the buffer was received with
+    };
+
+    //! Track an outgoing pass-through buffer so the original buffer and context can be
+    //! restored on return. On failure the buffer must not be routed.
+    Fw::Success trackPending(const Fw::Buffer& outgoing,
+                             const Fw::Buffer& original,
+                             const ComCfg::FrameContext& context);
+
+    //! Restore the original buffer and context for a returned buffer and complete the
+    //! return to the deframer; untracked buffers are returned as-is with the fallback context
+    void restoreAndReturn(Fw::Buffer& returned, const ComCfg::FrameContext& fallbackContext);
 
     //! Route an F Prime command packet (copy)
     void routeFprimeCommand(const CfsRouteEntry& route,
@@ -101,9 +115,12 @@ class CfsRouter final : public CfsRouterComponentBase {
     //! The APID routing table, statically configured via CfsRouterCfg.fpp
     const CfsRouter_CfsRouteTable m_routes;
 
-    //! Map of outstanding pass-through buffers to the context each was received with,
-    //! used to return the original context on dataReturnOut
-    Fw::ArrayMap<const U8*, ComCfg::FrameContext, CFS_ROUTER_MAX_PENDING_BUFFERS> m_pending;
+    //! Map of outstanding pass-through payload pointers to the original buffer and
+    //! context, used to return the original buffer and context on dataReturnOut
+    Fw::ArrayMap<const U8*, PendingReturn, CFS_ROUTER_MAX_PENDING_BUFFERS> m_pending;
+
+    //! Protects m_pending; held only around map operations, never across port invocations
+    Os::Mutex m_pendingLock;
 };
 
 }  // namespace FPrimeCfs

@@ -113,6 +113,9 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! dataReturnIn accepts returned buffers without action
     void testDataReturn();
 
+    //! schedIn drives one process() pass: drains the queue and polls the software bus
+    void testSchedIn();
+
     //! Randomized sequence of uplink/downlink/flow-control operations
     void testRandomized();
 

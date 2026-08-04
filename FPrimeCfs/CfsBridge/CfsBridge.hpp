@@ -136,6 +136,12 @@ private:
     void dataReturnIn_handler(FwIndexType portNum, //!< The port number
                               Fw::Buffer &data, const ComCfg::FrameContext &context) override;
 
+    //! Handler implementation for schedIn
+    //!
+    //! Drives the bridge from a rate group: drains the message queue and polls the software bus once
+    void schedIn_handler(FwIndexType portNum, //!< The port number
+                         U32 context) override;
+
     //! Handler implementation for comStatusIn
     //!
     //! Port to receive com status signals from the cFS bridge component.

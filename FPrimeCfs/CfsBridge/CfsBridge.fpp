@@ -44,6 +44,12 @@ module FPrimeCfs {
         @ Since the cFS bridge may be paired with a framer stack, it must accept com status signals
         sync input port comStatusIn: Fw.SuccessCondition
 
+        @ Scheduled input driving the bridge: each invocation drains the component's message
+        @ queue and polls the cFS software bus once (equivalent to one process() call).
+        @ Deployments may drive the bridge from a rate group via this port instead of
+        @ calling process() from a dedicated loop.
+        sync input port schedIn: Svc.Sched
+
         # The cFS bridge component also acts as the sending "ComDriver": it transmits framed space packets from the
         # F Prime framework out over the cFS software bus.
 
