@@ -38,7 +38,7 @@ The reusable components and topologies provided by F Prime can be used to constr
 | Component    | Purpose                                                         | SDD Link                                             |
 |--------------|-----------------------------------------------------------------|------------------------------------------------------|
 | CfsBridge    | Expose access to the cFS messaging bus as an F Prime Component. | [CfsBridge](./FPrimeCfs/CfsBridge/docs/sdd.md)       |
-| EvsMirror    | Pass-through that mirrors F Prime events to cFS Event Services (EVS). | [EvsMirror](./FPrimeCfs/EvsMirror/docs/sdd.md)  |
+| EvsMirror    | Text logger replacement publishing F Prime events to cFS Event Services (EVS). | [EvsMirror](./FPrimeCfs/EvsMirror/docs/sdd.md)  |
 | PollingTimer | Rate group timer that is polled by the main program loop.       | [PollingTimer](./FPrimeCfs/PollingTimer/docs/sdd.md) |
 
 ## Integration and Usage

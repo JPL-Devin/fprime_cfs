@@ -39,18 +39,15 @@ class EvsMirrorTester final : public EvsMirrorGTestBase {
     // Tests
     // ----------------------------------------------------------------------
 
-    //! Events on logIn are forwarded unchanged on logOut
-    void testLogPassThrough();
-
-    //! Text events on textLogIn are forwarded unchanged on textLogOut and
-    //! mirrored to EVS with the formatted text and truncated event ID
-    void testTextLogPassThroughAndMirror();
+    //! Text events are mirrored to EVS with the formatted text and truncated
+    //! event ID
+    void testMirror();
 
     //! Each F Prime severity maps to the expected EVS event type
     void testSeverityMapping();
 
-    //! An EVS send failure does not prevent forwarding
-    void testEvsFailureStillForwards();
+    //! An EVS send failure is tolerated without asserting
+    void testEvsFailure();
 
   private:
     // ----------------------------------------------------------------------
