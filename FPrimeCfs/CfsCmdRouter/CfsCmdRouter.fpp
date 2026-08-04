@@ -20,7 +20,8 @@ module FPrimeCfs {
 
         @ Receiving data (Fw::Buffer) to be routed, with the context it was
         @ deframed with. The data starts at the cFS command secondary header.
-        sync input port dataIn: Svc.ComDataWithContext
+        @ Guarded: serializes access to the pending-buffer store with bufferReturnIn.
+        guarded input port dataIn: Svc.ComDataWithContext
 
         @ Port for returning ownership of data received on dataIn, with the context
         @ it was received with
@@ -51,8 +52,9 @@ module FPrimeCfs {
         output port unknownDataOut: Svc.ComDataWithContext
 
         @ Port for receiving back ownership of buffers sent on bufferOut or
-        @ unknownDataOut
-        sync input port bufferReturnIn: Fw.BufferSend
+        @ unknownDataOut.
+        @ Guarded: serializes access to the pending-buffer store with dataIn.
+        guarded input port bufferReturnIn: Fw.BufferSend
 
         # ----------------------------------------------------------------------
         # Events
