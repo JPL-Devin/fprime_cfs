@@ -21,7 +21,7 @@ register_fprime_module(
 
 if (TARGET core_api)
     # Building within a cFS mission build: link against the real cFE core API
-    target_link_libraries(${FPRIME_CURRENT_MODULE} core_api)
+    target_link_libraries(${FPRIME_CURRENT_MODULE} PUBLIC core_api)
 else()
     # Standalone (unit test) build: use the cFE stub layer in test/ut/stubs
     target_include_directories(${FPRIME_CURRENT_MODULE} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/test/ut/stubs")
