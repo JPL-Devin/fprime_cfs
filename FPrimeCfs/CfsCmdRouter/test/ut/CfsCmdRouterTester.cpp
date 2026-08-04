@@ -62,7 +62,10 @@ void CfsCmdRouterTester ::setValidChecksum(ComCfg::Apid::T apid, U16 sequenceCou
     bytes[1] = checksum;
 }
 
-void CfsCmdRouterTester ::sendData(ComCfg::Apid::T apid, bool hasSecHdr, U8* bytes, FwSizeType size,
+void CfsCmdRouterTester ::sendData(ComCfg::Apid::T apid,
+                                   bool hasSecHdr,
+                                   U8* bytes,
+                                   FwSizeType size,
                                    U16 sequenceCount) {
     Fw::Buffer buffer(bytes, size);
     ComCfg::FrameContext context;
@@ -208,8 +211,8 @@ void CfsCmdRouterTester ::testRandomized() {
         for (FwSizeType j = 0; j < sizeof(bytes); j++) {
             bytes[j] = static_cast<U8>(STest::Pick::lowerUpper(0, 0xFF));
         }
-        const FwSizeType size = static_cast<FwSizeType>(
-            STest::Pick::lowerUpper(CFS_CMD_ROUTER_SEC_HDR_SIZE, sizeof(bytes)));
+        const FwSizeType size =
+            static_cast<FwSizeType>(STest::Pick::lowerUpper(CFS_CMD_ROUTER_SEC_HDR_SIZE, sizeof(bytes)));
         static const U8 FUNCTION_CODES[3] = {COM_FUNCTION_CODE, BUFFER_FUNCTION_CODE, UNKNOWN_FUNCTION_CODE};
         bytes[0] = FUNCTION_CODES[STest::Pick::lowerUpper(0, 2)];
         const bool hasSecHdr = (STest::Pick::lowerUpper(0, 1) == 1);

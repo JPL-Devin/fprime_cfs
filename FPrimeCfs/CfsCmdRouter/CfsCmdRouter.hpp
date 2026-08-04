@@ -38,9 +38,7 @@ class CfsCmdRouter final : public CfsCmdRouterComponentBase {
     // ----------------------------------------------------------------------
 
     //! Handler implementation for dataIn
-    void dataIn_handler(FwIndexType portNum,
-                        Fw::Buffer& data,
-                        const ComCfg::FrameContext& context) override;
+    void dataIn_handler(FwIndexType portNum, Fw::Buffer& data, const ComCfg::FrameContext& context) override;
 
     //! Handler implementation for cmdResponseIn (no-op)
     void cmdResponseIn_handler(FwIndexType portNum,

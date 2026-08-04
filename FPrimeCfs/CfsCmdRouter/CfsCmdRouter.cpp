@@ -122,8 +122,8 @@ void CfsCmdRouter ::routeCom(const CfsCmdRouteEntry& route, Fw::Buffer& data, co
     const FwIndexType index = route.get_portIndex();
     if (this->isConnected_comOut_OutputPort(index)) {
         Fw::ComBuffer com;
-        const Fw::SerializeStatus status = com.setBuff(data.getData() + CFS_CMD_ROUTER_SEC_HDR_SIZE,
-                                                       data.getSize() - CFS_CMD_ROUTER_SEC_HDR_SIZE);
+        const Fw::SerializeStatus status =
+            com.setBuff(data.getData() + CFS_CMD_ROUTER_SEC_HDR_SIZE, data.getSize() - CFS_CMD_ROUTER_SEC_HDR_SIZE);
         if (status == Fw::FW_SERIALIZE_OK) {
             this->comOut_out(index, com, 0);
         } else {
