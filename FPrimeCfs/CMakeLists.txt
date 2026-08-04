@@ -1,4 +1,5 @@
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Types")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsAppBridge")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsBridge")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsCmdFramer")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsRouter")
