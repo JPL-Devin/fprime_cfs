@@ -14,4 +14,5 @@ register_fprime_project()
 # libraries). This means we cannot get away with just setting BUILD_SHARED_LIBS to ON.
 target_compile_options("${FPRIME_GLOBAL_INTERFACE_TARGET}" INTERFACE -fPIC)
 
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config/FPrimeCfsConfig")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/FPrimeCfs")
