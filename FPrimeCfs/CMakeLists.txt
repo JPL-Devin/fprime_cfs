@@ -1,5 +1,8 @@
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsBridge")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsRouter")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsTlmFramer")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CfsTlmDeframer")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Subtopologies/CfsTlmFraming")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Ports")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/PollingTimer")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/SchAppDriver")
