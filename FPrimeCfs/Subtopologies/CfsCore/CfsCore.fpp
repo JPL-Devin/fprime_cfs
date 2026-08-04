@@ -27,7 +27,7 @@ module CfsCore {
         };
         """
         phase Fpp.ToCpp.Phases.configComponents """
-        // Health is supplied a set of ping entires.
+        // Health is supplied a set of ping entries.
         CfsCore::health.setPingEntries(
             ConfigObjects::CfsCore_health::pingEntries,
             FW_NUM_ARRAY_ELEMENTS(ConfigObjects::CfsCore_health::pingEntries),
