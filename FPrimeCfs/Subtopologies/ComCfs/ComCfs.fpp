@@ -1,14 +1,6 @@
 module ComCfs {
 
     # ----------------------------------------------------------------------
-    # Active Components
-    # ----------------------------------------------------------------------
-    instance aggregator: Svc.ComAggregator base id ComCfsConfig.BASE_ID + 0x00000 \
-        queue size ComCfsConfig.QueueSizes.aggregator \
-        stack size ComCfsConfig.StackSizes.aggregator \
-        priority ComCfsConfig.Priorities.aggregator
-
-    # ----------------------------------------------------------------------
     # Queued Components
     # ----------------------------------------------------------------------
     instance cfsBridge: FPrimeCfs.CfsBridge base id ComCfsConfig.BASE_ID + 0x01000 \
@@ -87,15 +79,11 @@ module ComCfs {
     #
     # - Downlink: two app bridges (commands and telemetry) feed the cFS secondary
     #   framers (FPrimeCfs.CfsCmdFramer and FPrimeCfs.CfsTlmFramer), which feed the
-    #   space packet framer, the aggregator, and finally the CfsBridge onto the cFS
-    #   software bus.
+    #   space packet framer, and finally the CfsBridge onto the cFS software bus.
     # - Uplink: the CfsBridge feeds the space packet deframer, followed by the
     #   FPrimeCfs.CfsRouter (APID routing) and the FPrimeCfs.CfsCmdRouter (function
     #   code routing) ahead of commanding.
     topology Subtopology {
-        # Active Components
-        instance aggregator
-
         # Queued Components
         instance cfsBridge
 
@@ -148,18 +136,13 @@ module ComCfs {
             cfsBridge.bufferAllocate   -> commsBufferManager.bufferGetCallee
             cfsBridge.bufferDeallocate -> commsBufferManager.bufferSendIn
 
-            # SpacePacketFramer <-> ComAggregator
-            spacePacketFramer.dataOut -> aggregator.dataIn
-            aggregator.dataReturnOut  -> spacePacketFramer.dataReturnIn
-
-            # ComAggregator <-> CfsBridge (bottom of the stack, onto the cFS software bus)
-            aggregator.dataOut      -> cfsBridge.dataIn
-            cfsBridge.dataReturnOut -> aggregator.dataReturnIn
+            # SpacePacketFramer <-> CfsBridge (bottom of the stack, onto the cFS software bus)
+            spacePacketFramer.dataOut -> cfsBridge.dataIn
+            cfsBridge.dataReturnOut   -> spacePacketFramer.dataReturnIn
 
             # ComStatus. The status chain terminates at the space packet framer:
             # the app bridges do not pace transmission on communication status.
-            cfsBridge.comStatusOut  -> aggregator.comStatusIn
-            aggregator.comStatusOut -> spacePacketFramer.comStatusIn
+            cfsBridge.comStatusOut -> spacePacketFramer.comStatusIn
         }
 
         connections Uplink {
@@ -242,9 +225,6 @@ module ComCfs {
         # ----------------------------------------------------------------------
         # Topology ports (scheduling)
         # ----------------------------------------------------------------------
-
-        @ Rate-group driven timeout to flush the ComAggregator buffer
-        port aggregatorTimeout = aggregator.timeout
 
         @ Input port triggering commsBufferManager telemetry output
         port bufferManagerSchedIn = commsBufferManager.schedIn

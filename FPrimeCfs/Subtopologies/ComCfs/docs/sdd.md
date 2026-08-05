@@ -12,8 +12,7 @@ flowchart TD
         tlmBridge[tlmBridge - FPrimeCfs.CfsAppBridge] --> tlmFramer[tlmFramer - FPrimeCfs.CfsTlmFramer]
         cmdFramer --> spacePacketFramer[spacePacketFramer - Svc.Ccsds.SpacePacketFramer]
         tlmFramer --> spacePacketFramer
-        spacePacketFramer --> aggregator[aggregator - Svc.ComAggregator]
-        aggregator --> cfsBridge[cfsBridge - FPrimeCfs.CfsBridge]
+        spacePacketFramer --> cfsBridge[cfsBridge - FPrimeCfs.CfsBridge]
     end
     subgraph Uplink
         cfsBridge2[cfsBridge - FPrimeCfs.CfsBridge] --> spacePacketDeframer[spacePacketDeframer - Svc.Ccsds.SpacePacketDeframer]
@@ -34,7 +33,7 @@ Two `FPrimeCfs.CfsAppBridge` instances feed the two cFS secondary framers:
   `FPrimeCfs.CfsSystemTime` instance (e.g. `CfsCore.cfsTime`).
 
 Both secondary framers feed the `Svc.Ccsds.SpacePacketFramer`, which completes the CCSDS space packet and passes it
-through the `Svc.ComAggregator` to the `FPrimeCfs.CfsBridge`, which publishes it on the cFS software bus.
+to the `FPrimeCfs.CfsBridge`, which publishes it on the cFS software bus.
 
 Only the command framer's `dataReturnIn` is connected to the space packet framer's return path: both secondary
 framers allocate from and deallocate to the same shared buffer pool (`commsBufferManager`), so either framer can
@@ -89,7 +88,6 @@ be connected to release uplink flow control.
 | `cmdRouterBufferOut` | out (array) | Function-code-routed payloads |
 | `cmdRouterUnknownDataOut` | out | Messages with no configured function code route |
 | `cmdRouterBufferReturnIn` | in | Ownership return for `cmdRouterBufferOut` / `cmdRouterUnknownDataOut` buffers |
-| `aggregatorTimeout` | in | Rate-group driven timeout flushing the aggregator |
 | `bufferManagerSchedIn` | in | Rate-group driven buffer manager telemetry |
 | `cfsBridgeSchedIn` | in | Rate-group tick driving the CfsBridge queue and software bus poll |
 | `cfsBridgeComStatusIn` | in | Releases CfsBridge uplink flow control (required when configured paused) |
@@ -116,9 +114,8 @@ topology MyApp {
     }
 
     connections RateGroups {
-        rateGroup1.RateGroupMemberOut[0] -> ComCfs.Subtopology.aggregatorTimeout
-        rateGroup1.RateGroupMemberOut[1] -> ComCfs.Subtopology.bufferManagerSchedIn
-        rateGroup1.RateGroupMemberOut[2] -> ComCfs.Subtopology.cfsBridgeSchedIn
+        rateGroup1.RateGroupMemberOut[0] -> ComCfs.Subtopology.bufferManagerSchedIn
+        rateGroup1.RateGroupMemberOut[1] -> ComCfs.Subtopology.cfsBridgeSchedIn
     }
 
     connections Time {

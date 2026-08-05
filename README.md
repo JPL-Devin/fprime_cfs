@@ -53,7 +53,7 @@ The reusable components and topologies provided by F Prime can be used to constr
 | Subtopology | Purpose                                                          | SDD Link                                             |
 |-------------|------------------------------------------------------------------|------------------------------------------------------|
 | ComCfs      | Full cFS communications stack: app bridges, cFS secondary framers, space packet framing, cFS-aware routing, and the CfsBridge. | [ComCfs](./FPrimeCfs/Subtopologies/ComCfs/docs/sdd.md) |
-| CfsCore     | Core command and data handling with cFS choices: EvsMirror text logging, TlmPacketizer telemetry, CfsSystemTime time, SchAppDriver rate groups, optional EventManager. | [CfsCore](./FPrimeCfs/Subtopologies/CfsCore/docs/sdd.md) |
+| CfsCore     | Core command and data handling with cFS choices: EvsMirror text logging, TlmPacketizer telemetry, CfsSystemTime time, SchAppDriver rate groups, EventManager event downlink. | [CfsCore](./FPrimeCfs/Subtopologies/CfsCore/docs/sdd.md) |
 
 ## Integration and Usage
 

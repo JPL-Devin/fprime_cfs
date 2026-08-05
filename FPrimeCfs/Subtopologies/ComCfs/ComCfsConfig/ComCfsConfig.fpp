@@ -3,16 +3,7 @@ module ComCfsConfig {
     constant BASE_ID = 0x02000000
 
     module QueueSizes {
-        constant aggregator = 10
-        constant cfsBridge  = 10
-    }
-
-    module StackSizes {
-        constant aggregator = 64 * 1024
-    }
-
-    module Priorities {
-        constant aggregator = 30
+        constant cfsBridge = 10
     }
 
     # cFS bridge constants

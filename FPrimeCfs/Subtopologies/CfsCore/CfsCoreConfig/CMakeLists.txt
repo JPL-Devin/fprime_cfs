@@ -2,8 +2,6 @@ register_fprime_config(
     EXCLUDE_FROM_ALL
     AUTOCODER_INPUTS
         "${CMAKE_CURRENT_LIST_DIR}/CfsCoreConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/CfsCoreEventsConfig.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/CfsCoreFatalHandlerConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/CfsCoreTlmConfig.fpp"
     INTERFACE
 )

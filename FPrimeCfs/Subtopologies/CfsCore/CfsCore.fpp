@@ -7,13 +7,36 @@ module CfsCore {
         stack size CfsCoreConfig.StackSizes.cmdDisp \
         priority CfsCoreConfig.Priorities.cmdDisp
 
-    # NOTE: the 'events' instance (optional Svc.EventManager) is defined in
-    # CfsCoreConfig/CfsCoreEventsConfig.fpp; it is only instantiated by the
-    # SubtopologyWithEvents topology
+    instance events: Svc.EventManager base id CfsCoreConfig.BASE_ID + 0x06000 \
+        queue size CfsCoreConfig.QueueSizes.events \
+        stack size CfsCoreConfig.StackSizes.events \
+        priority CfsCoreConfig.Priorities.events
 
-    # NOTE: the 'tlmSend' instance (Svc.TlmPacketizer) is defined in
-    # CfsCoreConfig/CfsCoreTlmConfig.fpp so that projects may supply their own
-    # packet list via configuration overrides
+    # NOTE: Svc.TlmPacketizer requires a packet list to be set before use. The
+    # packet list is generated from the deployment's telemetry packet
+    # specification, so deployments set their own generated packet list during
+    # component configuration. The default configuration below sets an empty
+    # packet list so that a deployment that has not yet done so degrades
+    # gracefully (no packets downlinked) instead of asserting on the first
+    # telemetry write.
+    instance tlmSend: Svc.TlmPacketizer base id CfsCoreConfig.BASE_ID + 0x01000 \
+        queue size CfsCoreConfig.QueueSizes.tlmSend \
+        stack size CfsCoreConfig.StackSizes.tlmSend \
+        priority CfsCoreConfig.Priorities.tlmSend \
+    {
+        phase Fpp.ToCpp.Phases.configObjects """
+        Svc::TlmPacketizerPacketList packetList = {{nullptr}, 0};
+        Svc::TlmPacketizerPacket omittedChannels = {nullptr, 0, 0, 0};
+        """
+
+        phase Fpp.ToCpp.Phases.configComponents """
+        CfsCore::tlmSend.setPacketList(
+            ConfigObjects::CfsCore_tlmSend::packetList,
+            ConfigObjects::CfsCore_tlmSend::omittedChannels,
+            0
+        );
+        """
+    }
 
     # ----------------------------------------------------------------------
     # Queued Components
@@ -63,7 +86,6 @@ module CfsCore {
     # text logging is replaced by the FPrimeCfs.EvsMirror, telemetry uses the
     # Svc.TlmPacketizer, time is provided by the FPrimeCfs.CfsSystemTime component,
     # and the FPrimeCfs.SchAppDriver drives rate groups from cFS scheduler messages.
-    # The Svc.EventManager is optional: import SubtopologyWithEvents to include it.
     #
     # Deployments using this subtopology declare the pattern connections:
     #
@@ -72,10 +94,11 @@ module CfsCore {
     #   text event connections instance CfsCore.evsMirror
     #   health connections instance CfsCore.$health
     #   time connections instance CfsCore.cfsTime
-    #   event connections instance CfsCore.events   # SubtopologyWithEvents only
+    #   event connections instance CfsCore.events
     topology Subtopology {
         # Active Components
         instance cmdDisp
+        instance events
         instance tlmSend
 
         # Queued Components
@@ -88,6 +111,10 @@ module CfsCore {
         instance fatalHandler
         instance schAppDriver
         instance cfsTime
+
+        connections FaultProtection {
+            events.FatalAnnounce -> fatalHandler.FatalReceive
+        }
 
         # ----------------------------------------------------------------------
         # Topology ports
@@ -123,30 +150,10 @@ module CfsCore {
         @ Input port converting an F Prime time to a cFS system time
         port cfsTimeConvert = cfsTime.cfsTimeConvert
 
-        @ Input port delivering FATAL announcements to the fatal handler. In the base
-        @ Subtopology (no Svc.EventManager) deployments must route their FATAL source here;
-        @ SubtopologyWithEvents wires events.FatalAnnounce to the fatal handler internally.
-        port fatalReceive = fatalHandler.FatalReceive
-    } # end Subtopology
-
-    @ Subtopology plus the optional Svc.EventManager
-    topology SubtopologyWithEvents {
-        import Subtopology
-
-        instance events
-
-        connections FaultProtection {
-            events.FatalAnnounce -> fatalHandler.FatalReceive
-        }
-
-        # ----------------------------------------------------------------------
-        # Topology ports
-        # ----------------------------------------------------------------------
-
         @ Output port for sending event packets from the EventManager
         port eventsPktSend = events.PktSend
 
         @ Input port for scheduling the EventManager (dropped event telemetry)
         port eventsRun = events.run
-    } # end SubtopologyWithEvents
+    } # end Subtopology
 } # end CfsCore
