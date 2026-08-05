@@ -154,6 +154,13 @@ TEST(Nominal, ReceiveNoMessage) {
     tester.testReceiveNoMessage();
 }
 
+TEST(OffNominal, ReceiveAllocationFailure) {
+    COMMENT("Received messages are dropped when buffer allocation fails");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-014");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testReceiveAllocationFailure();
+}
+
 TEST(OffNominal, ReceiveError) {
     COMMENT("Software bus receive errors produce no output");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-006");

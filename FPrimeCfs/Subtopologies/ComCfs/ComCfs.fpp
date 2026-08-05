@@ -140,7 +140,13 @@ module ComCfs {
             # SpacePacketFramer buffer and APID management
             spacePacketFramer.bufferAllocate   -> commsBufferManager.bufferGetCallee
             spacePacketFramer.bufferDeallocate -> commsBufferManager.bufferSendIn
+
             spacePacketFramer.getApidSeqCount  -> apidManager.getApidSeqCountIn
+
+            # Received SB messages are copied into allocated buffers so downstream
+            # consumers may hold them past the bridge's polling cycle
+            cfsBridge.bufferAllocate   -> commsBufferManager.bufferGetCallee
+            cfsBridge.bufferDeallocate -> commsBufferManager.bufferSendIn
 
             # SpacePacketFramer <-> ComAggregator
             spacePacketFramer.dataOut -> aggregator.dataIn

@@ -101,6 +101,9 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! Empty software bus polls produce no output
     void testReceiveNoMessage();
 
+    //! Received messages are dropped when buffer allocation fails
+    void testReceiveAllocationFailure();
+
     //! Software bus receive errors produce no output
     void testReceiveError();
 
@@ -120,6 +123,14 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     void testRandomized();
 
   private:
+    //! Allocate from the tester's static storage, recording the call in the port history
+    Fw::Buffer from_bufferAllocate_handler(FwIndexType portNum, FwSizeType size) override;
+
+    //! Storage backing from_bufferAllocate_handler allocations
+    U8 m_allocStorage[1024];
+
+    //! When true, from_bufferAllocate_handler returns an empty (failed) allocation
+    bool m_failAllocation = false;
     // ----------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------

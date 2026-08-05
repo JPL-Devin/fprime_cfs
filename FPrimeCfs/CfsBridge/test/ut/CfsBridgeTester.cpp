@@ -36,6 +36,14 @@ CfsBridgeTester ::~CfsBridgeTester() {
 // Helpers
 // ----------------------------------------------------------------------
 
+Fw::Buffer CfsBridgeTester ::from_bufferAllocate_handler(FwIndexType portNum, FwSizeType size) {
+    this->pushFromPortEntry_bufferAllocate(size);
+    if (this->m_failAllocation or (size > sizeof(this->m_allocStorage))) {
+        return Fw::Buffer();
+    }
+    return Fw::Buffer(this->m_allocStorage, size);
+}
+
 void CfsBridgeTester ::configureAndSubscribe(ComCfg::Apid::T apid, bool paused) {
     ASSERT_EQ(this->component.configure(10, "TEST_PIPE", paused), CFE_SUCCESS);
     ASSERT_EQ(this->component.subscribe(apid), CFE_SUCCESS);
@@ -395,6 +403,25 @@ void CfsBridgeTester ::testReceive() {
     ASSERT_EQ(std::memcmp(outBuffer.getData() + HEADER_SIZE, payload, sizeof(payload)), 0);
     ComCfg::FrameContext defaultContext;
     ASSERT_EQ(outContext, defaultContext);
+    // The emitted buffer is an allocated copy, not an alias of software bus memory
+    ASSERT_from_bufferAllocate_SIZE(1);
+    ASSERT_EQ(outBuffer.getData(), this->m_allocStorage);
+}
+
+void CfsBridgeTester ::testReceiveAllocationFailure() {
+    this->configureAndSubscribe(ComCfg::Apid::FW_PACKET_COMMAND);
+
+    U8 payload[32];
+    this->fillRandom(payload, sizeof(payload));
+    this->clearHistory();
+    this->m_failAllocation = true;
+    this->receiveMessage(ComCfg::Apid::FW_PACKET_COMMAND, payload, sizeof(payload));
+    this->m_failAllocation = false;
+
+    // The message is dropped: nothing is emitted and nothing is deallocated
+    ASSERT_from_bufferAllocate_SIZE(1);
+    ASSERT_from_dataOut_SIZE(0);
+    ASSERT_from_bufferDeallocate_SIZE(0);
 }
 
 void CfsBridgeTester ::testSchedIn() {
@@ -498,7 +525,9 @@ void CfsBridgeTester ::testDataReturn() {
     ComCfg::FrameContext context;
     this->clearHistory();
     this->invoke_to_dataReturnIn(0, buffer, context);
-    // cFS does not return messages explicitly: no outputs are produced
+    // The returned buffer is handed back to the allocator; nothing else is produced
+    ASSERT_from_bufferDeallocate_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_bufferDeallocate->at(0).fwBuffer.getData(), storage);
     ASSERT_from_dataOut_SIZE(0);
     ASSERT_from_dataReturnOut_SIZE(0);
     ASSERT_from_comStatusOut_SIZE(0);

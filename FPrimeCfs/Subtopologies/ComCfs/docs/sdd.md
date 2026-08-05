@@ -63,7 +63,10 @@ configuration module to supply this application's command message ID and any add
 
 The bridge is a queued component: deployments must drive the exported `cfsBridgeSchedIn` port from a rate group
 (each tick drains the bridge's message queue and polls the software bus once) or call `cfsBridge.process()` from a
-dedicated loop. When the bridge is configured with `paused = true`, the exported `cfsBridgeComStatusIn` port must
+dedicated loop. The bridge's `bufferAllocate`/`bufferDeallocate` ports are connected to `commsBufferManager`, so
+each received software bus message is copied into an allocated buffer before entering the uplink chain; downstream
+consumers (including deferred-return routes such as file uplink) may therefore hold buffers past the bridge's
+polling cycle. When the bridge is configured with `paused = true`, the exported `cfsBridgeComStatusIn` port must
 be connected to release uplink flow control.
 
 ## Exported ports
