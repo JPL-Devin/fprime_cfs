@@ -6,6 +6,7 @@
 
 #include "FPrimeCfs/CfsBridge/CfsBridge.hpp"
 #include "Fw/Logger/Logger.hpp"
+#include "config/FppConstantsAc.hpp"
 #include <cstring>
 #include <limits>
 
@@ -234,7 +235,7 @@ CFE_Status_t CfsBridge ::transmitWrappedCommand(const U8* packet, const FwSizeTy
     wrapped[CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET] = static_cast<U8>((lengthToken >> 8) & 0xFF);
     wrapped[CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET + 1] = static_cast<U8>(lengthToken & 0xFF);
     // cFS command secondary header: function code, then checksum (computed below over the whole packet)
-    wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE] = CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE;
+    wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE] = static_cast<U8>(ComCfg::FprimeCommandFunctionCode);
     wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1] = 0;
     (void)std::memcpy(&wrapped[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + CFS_BRIDGE_CMD_SEC_HDR_SIZE],
                       &packet[CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE], size - CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE);

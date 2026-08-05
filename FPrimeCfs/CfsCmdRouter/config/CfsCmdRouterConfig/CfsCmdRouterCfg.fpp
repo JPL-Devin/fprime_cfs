@@ -22,10 +22,10 @@ module FPrimeCfs {
     constant CFS_CMD_ROUTER_ROUTE_TABLE_SIZE = 2
 
     @ The function code routing table: function code -> (route type, output port index).
-    @ This default configuration routes function code 0 (the CfsBridge F Prime command
-    @ wrapping function code) as a bare com; projects override with their own codes.
+    @ This default configuration routes ComCfg.FprimeCommandFunctionCode (the CfsBridge
+    @ F Prime command wrapping function code) as a bare com; projects override with their own codes.
     constant CFS_CMD_ROUTER_ROUTE_TABLE = [
-        { functionCode = 0, routeType = CfsCmdRouteType.COM,    portIndex = 0 },
+        { functionCode = ComCfg.FprimeCommandFunctionCode, routeType = CfsCmdRouteType.COM, portIndex = 0 },
         { functionCode = 1, routeType = CfsCmdRouteType.BUFFER, portIndex = 0 },
     ]
 }

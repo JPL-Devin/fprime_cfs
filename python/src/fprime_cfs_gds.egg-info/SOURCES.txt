@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/fprime_cfs_gds/__init__.py
+src/fprime_cfs_gds/__main__.py
+src/fprime_cfs_gds/comm.py
+src/fprime_cfs_gds/commands.py
+src/fprime_cfs_gds/dictionary.py
+src/fprime_cfs_gds/generate.py
+src/fprime_cfs_gds/telemetry.py
+src/fprime_cfs_gds.egg-info/PKG-INFO
+src/fprime_cfs_gds.egg-info/SOURCES.txt
+src/fprime_cfs_gds.egg-info/dependency_links.txt
+src/fprime_cfs_gds.egg-info/entry_points.txt
+src/fprime_cfs_gds.egg-info/requires.txt
+src/fprime_cfs_gds.egg-info/top_level.txt
+tests/test_generate.py

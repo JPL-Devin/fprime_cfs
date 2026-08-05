@@ -33,8 +33,6 @@ constexpr U32 CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK = 0x0800;
 constexpr FwSizeType CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET = 4;
 //! Size in bytes of the cFS command secondary header: {U8 FunctionCode, U8 Checksum}
 constexpr FwSizeType CFS_BRIDGE_CMD_SEC_HDR_SIZE = 2;
-//! Function code carried by F Prime passthrough commands wrapped as cFS command packets
-constexpr U8 CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE = 0;
 //! Maximum total size in bytes of a wrapped cFS command packet (primary header + secondary header + payload).
 //! Sized to bound the component's internal wrap storage: large enough for the largest F Prime uplink command
 //! packet, and well under the software bus limit CFE_MISSION_SB_MAX_SB_MSG_SIZE (default 32768).
@@ -73,7 +71,7 @@ class CfsBridge final : public CfsBridgeComponentBase
     //! message is sent per received signal. When `wrapFprimeCommands` is true, F Prime command space packets received
     //! on `dataIn` (packet type command, no secondary header) are transmitted as valid cFS command packets: the
     //! secondary header flag is set, and a cFS command secondary header (function code
-    //! `CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE` and a valid cFS XOR checksum) is inserted ahead of the payload.
+    //! `ComCfg.FprimeCommandFunctionCode` and a valid cFS XOR checksum) is inserted ahead of the payload.
     CFE_Status_t configure(const FwSizeType pipeDepth,
                            const char* pipeName = "CFS_BRIDGE_PIPE",
                            bool paused = false,

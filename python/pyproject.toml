@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fprime-cfs-gds"
+version = "0.1.0"
+description = "F Prime dictionary conversion and runner tooling for the cFS GroundSystem GDS"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+dependencies = [
+    "fprime-gds>=4.2.1",
+]
+
+[project.scripts]
+fprime-cfs-gds = "fprime_cfs_gds.__main__:main"
+fprime-cfs-gds-config = "fprime_cfs_gds.generate:main"
+fprime-cfs-gds-comm = "fprime_cfs_gds.comm:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+test = ["pytest"]

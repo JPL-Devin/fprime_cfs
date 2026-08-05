@@ -13,6 +13,9 @@ module ComCfg {
     @ Fixed size of CCSDS TM frames
     dictionary constant TmFrameFixedSize = 1024  # Needs to be at least COM_BUFFER_MAX_SIZE + (2 * SpacePacketHeaderSize) + 1
 
+    @ Function code carried in the cFS command secondary header of F Prime passthrough commands
+    dictionary constant FprimeCommandFunctionCode = 0
+
     @ Upper Bound on Fixed size of CCSDS AOS frames
     constant AosMaxFrameFixedSize = 1536
 
