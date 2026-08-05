@@ -124,10 +124,10 @@ def generate_commands(
     """
     function_code = dictionary.get_constant("ComCfg.FprimeCommandFunctionCode")
     descriptor = dictionary.resolve_definition(
-        dictionary.type_definitions["FwPacketDescriptorType"]
+        dictionary.get_type_definition("FwPacketDescriptorType")
     )
     opcode_type = dictionary.resolve_definition(
-        dictionary.type_definitions["FwOpcodeType"]
+        dictionary.get_type_definition("FwOpcodeType")
     )
     message_id = (
         dictionary.get_apid("FW_PACKET_COMMAND")

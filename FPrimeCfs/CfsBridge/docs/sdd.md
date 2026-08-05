@@ -162,3 +162,4 @@ Coverage: 100% lines, 100% functions.
 | 2026-07-30 | Optional F Prime command wrapping: transmit F Prime command packets as valid cFS command packets (secondary header flag, function code, checksum) |
 | 2026-08-04 | Add `schedIn` port for rate-group driven operation (one `process()` per tick); bound the `dataIn` packet loop by the maximum packet count |
 | 2026-08-04 | Add `bufferAllocate`/`bufferDeallocate` ports: received SB messages are copied into allocated buffers so downstream consumers may hold them past the polling cycle |
+| 2026-08-05 | Source the wrapped-command function code from the `ComCfg.FprimeCommandFunctionCode` dictionary constant instead of a local constant |

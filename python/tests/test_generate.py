@@ -9,7 +9,8 @@ import pytest
 from fprime_cfs.comm import split_space_packets
 from fprime_cfs.commands import generate_commands
 from fprime_cfs.dictionary import Dictionary, DictionaryError
-from fprime_cfs.telemetry import generate_telemetry
+from fprime_cfs.generate import generate
+from fprime_cfs.telemetry import TLM_GUI_MAX_ROWS, generate_telemetry
 
 BASE_DICTIONARY = {
     "metadata": {"deploymentName": "Test"},
@@ -249,6 +250,95 @@ def test_missing_function_code_error(tmp_path):
     dictionary = make_dictionary(tmp_path, data)
     with pytest.raises(DictionaryError, match="FprimeCommandFunctionCode"):
         generate_commands(dictionary, tmp_path)
+
+
+def test_too_many_rows_error(tmp_path):
+    data = copy.deepcopy(BASE_DICTIONARY)
+    for index in range(TLM_GUI_MAX_ROWS):
+        name = f"comp.extra{index}"
+        data["telemetryChannels"].append(
+            {
+                "name": name,
+                "type": {"name": "U8", "kind": "integer", "size": 8, "signed": False},
+                "id": 100 + index,
+            }
+        )
+        data["telemetryPacketSets"][0]["members"][0]["members"].append(name)
+    dictionary = make_dictionary(tmp_path, data)
+    with pytest.raises(DictionaryError, match="display rows"):
+        generate_telemetry(dictionary, tmp_path)
+
+
+def test_enum_fallback_display(tmp_path):
+    # Enum values outside the 0-3 tlmGUI slots fall back to decimal display
+    data = copy.deepcopy(BASE_DICTIONARY)
+    for definition in data["typeDefinitions"]:
+        if definition["qualifiedName"] == "Test.Mode":
+            definition["enumeratedConstants"].append({"name": "SPECIAL", "value": 4})
+    dictionary = make_dictionary(tmp_path, data)
+    generate_telemetry(dictionary, tmp_path)
+    rows = [
+        [column.strip() for column in line.split(",")]
+        for line in (tmp_path / "fprime-tlm.txt").read_text().splitlines()
+        if not line.startswith("#")
+    ]
+    assert rows[5][:5] == ["comp.mode", "22", "1", "B", "Dec"]
+
+
+def test_float_and_bool_parameters(tmp_path):
+    data = copy.deepcopy(BASE_DICTIONARY)
+    data["commands"].append(
+        {
+            "name": "comp.SET_GAIN",
+            "commandKind": "async",
+            "opcode": 259,
+            "formalParams": [
+                {
+                    "name": "gain",
+                    "type": {"name": "F32", "kind": "float", "size": 32},
+                },
+                {
+                    "name": "enable",
+                    "type": {"name": "bool", "kind": "bool", "size": 8},
+                },
+            ],
+        }
+    )
+    dictionary = make_dictionary(tmp_path, data)
+    generate_commands(dictionary, tmp_path)
+    with (tmp_path / "ParameterFiles" / "fprime_comp_SET_GAIN").open(
+        "rb"
+    ) as file_handle:
+        _, names, _, descriptions, flags, _ = pickle.load(file_handle)
+    assert names == ["FramingDescriptor", "Opcode", "gain", "enable"]
+    # Floats are entered as raw IEEE-754 bits; bools as 0x00/0xFF bytes
+    assert flags[2:] == ["--uint32", "--uint8"]
+    assert "IEEE-754" in descriptions[2]
+    assert "255 for TRUE" in descriptions[3]
+
+
+def test_command_port_plumbing(tmp_path):
+    dictionary = make_dictionary(tmp_path, BASE_DICTIONARY)
+    ground_system = tmp_path / "cFS-GroundSystem"
+    (ground_system / "Subsystems" / "tlmGUI").mkdir(parents=True)
+    (ground_system / "Subsystems" / "cmdGui").mkdir(parents=True)
+    generate(dictionary, ground_system, command_host="10.0.0.5", command_port=5555)
+    pages = [
+        line
+        for line in (ground_system / "Subsystems" / "cmdGui" / "command-pages.txt")
+        .read_text()
+        .splitlines()
+        if not line.startswith("#")
+    ]
+    assert pages == [
+        "F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 10.0.0.5, 5555"
+    ]
+
+
+def test_generate_missing_ground_system_error(tmp_path):
+    dictionary = make_dictionary(tmp_path, BASE_DICTIONARY)
+    with pytest.raises(DictionaryError, match="cFS-GroundSystem checkout"):
+        generate(dictionary, tmp_path / "nonexistent")
 
 
 def test_split_space_packets():

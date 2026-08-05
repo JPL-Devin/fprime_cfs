@@ -65,6 +65,10 @@ list(APPEND MISSION_GLOBAL_APPLIST fprime fprime_cfs ...)
 
 This will integrate the library into the cFS build and make the targets available for the F Prime build as well.
 
+## Ground Tooling
+
+The [python/](./python) directory provides the `fprime-cfs` Python package: tools that generate cFS GroundSystem configuration from the F Prime dictionary and run the cFS GroundSystem as the GDS for an F Prime deployment. See [python/README.md](./python/README.md).
+
 ## Work To Go
 
 This library still needs to demonstrate how to subscribe to cFS messages that aren't strictly commands (e.g. telemetry) and how to rout these messages.

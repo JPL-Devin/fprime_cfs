@@ -26,8 +26,12 @@ from fprime_gds.common.communication.ccsds.space_data_link import (
 from .dictionary import Dictionary
 
 SPACE_PACKET_HEADER_SIZE = 6
+APID_MASK = 0x07FF
 IDLE_APID = 0x7FF
 RECONNECT_PERIOD_SECONDS = 1.0
+# Maximum space packet size wrappable in a TC frame: 1024-byte max frame length minus
+# the 5-byte TC primary header and 2-byte FECF trailer, with margin for the length field
+TC_MAX_PACKET_SIZE = 1016
 
 
 def split_space_packets(data: bytes):
@@ -42,7 +46,7 @@ def split_space_packets(data: bytes):
         packet_length = SPACE_PACKET_HEADER_SIZE + length_token + 1
         if offset + packet_length > len(data):
             break
-        if (stream_id & IDLE_APID) != IDLE_APID:
+        if (stream_id & APID_MASK) != IDLE_APID:
             packets.append(data[offset : offset + packet_length])
         offset += packet_length
     return packets
@@ -57,6 +61,7 @@ class GroundSystemBridge:
         gds_port,
         telemetry_address="127.0.0.1",
         telemetry_port=2234,
+        command_address="127.0.0.1",
         command_port=1234,
         scid=None,
         vcid=1,
@@ -69,7 +74,7 @@ class GroundSystemBridge:
         self.framer = SpaceDataLinkFramerDeframer(scid, vcid, frame_size)
         self.telemetry_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.command_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.command_socket.bind(("", command_port))
+        self.command_socket.bind((command_address, command_port))
         self.tcp_socket = None
         self.tcp_lock = threading.Lock()
         self.running = True
@@ -80,6 +85,8 @@ class GroundSystemBridge:
             try:
                 connection = socket.create_connection((self.gds_address, self.gds_port))
                 with self.tcp_lock:
+                    if self.tcp_socket is not None:
+                        self.tcp_socket.close()
                     self.tcp_socket = connection
                 print(
                     f"[INFO] Connected to GdsBridge at {self.gds_address}:{self.gds_port}"
@@ -118,10 +125,24 @@ class GroundSystemBridge:
     def uplink(self):
         """Receive command packets over UDP and send TC frames to the GdsBridge"""
         while self.running:
-            packet, _ = self.command_socket.recvfrom(4096)
+            try:
+                packet, _ = self.command_socket.recvfrom(4096)
+            except OSError:
+                continue
             if not packet:
                 continue
-            framed = self.framer.frame(packet)
+            if len(packet) > TC_MAX_PACKET_SIZE:
+                print(
+                    f"[WARNING] Dropping command: {len(packet)} byte packet exceeds "
+                    f"the {TC_MAX_PACKET_SIZE} byte TC frame limit",
+                    file=sys.stderr,
+                )
+                continue
+            try:
+                framed = self.framer.frame(packet)
+            except (AssertionError, ValueError) as error:
+                print(f"[WARNING] Dropping command: {error}", file=sys.stderr)
+                continue
             with self.tcp_lock:
                 connection = self.tcp_socket
             if connection is None:
@@ -155,6 +176,8 @@ class GroundSystemBridge:
                 except OSError:
                     pass
                 self.tcp_socket.close()
+        self.telemetry_socket.close()
+        self.command_socket.close()
 
 
 # Bridge arguments in the fprime_gds ParserBase specification format
@@ -171,11 +194,23 @@ BRIDGE_ARGUMENTS = {
         "type": int,
         "help": "GdsBridge TCP server port. Default: %(default)s",
     },
+    ("--telemetry-address",): {
+        "action": "store",
+        "default": "127.0.0.1",
+        "type": str,
+        "help": "GroundSystem telemetry UDP address to send to. Default: %(default)s",
+    },
     ("--telemetry-port",): {
         "action": "store",
         "default": 2234,
         "type": int,
         "help": "GroundSystem telemetry UDP port. Default: %(default)s",
+    },
+    ("--command-address",): {
+        "action": "store",
+        "default": "127.0.0.1",
+        "type": str,
+        "help": "GroundSystem command UDP address to listen on. Default: %(default)s",
     },
     ("--command-port",): {
         "action": "store",
@@ -195,10 +230,7 @@ BRIDGE_ARGUMENTS = {
 def add_arguments(parser: argparse.ArgumentParser):
     """Add bridge arguments to an argument parser"""
     for flags, specification in BRIDGE_ARGUMENTS.items():
-        parser.add_argument(
-            *flags,
-            **{key: value for key, value in specification.items() if key != "action"},
-        )
+        parser.add_argument(*flags, **specification)
 
 
 def bridge_from_arguments(args, dictionary: Dictionary) -> GroundSystemBridge:
@@ -206,7 +238,9 @@ def bridge_from_arguments(args, dictionary: Dictionary) -> GroundSystemBridge:
     return GroundSystemBridge(
         gds_address=args.gds_address,
         gds_port=args.gds_port,
+        telemetry_address=args.telemetry_address,
         telemetry_port=args.telemetry_port,
+        command_address=args.command_address,
         command_port=args.command_port,
         scid=dictionary.get_constant("ComCfg.SpacecraftId"),
         vcid=args.vcid,

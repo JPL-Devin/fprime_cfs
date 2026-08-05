@@ -100,10 +100,10 @@ def generate_telemetry(dictionary: Dictionary, tlm_gui_dir: Path) -> int:
     """
     packet = dictionary.get_packet()
     descriptor_size = dictionary.resolve_definition(
-        dictionary.type_definitions["FwPacketDescriptorType"]
+        dictionary.get_type_definition("FwPacketDescriptorType")
     ).size
     packet_id_type = dictionary.resolve_definition(
-        dictionary.type_definitions["FwTlmPacketizeIdType"]
+        dictionary.get_type_definition("FwTlmPacketizeIdType")
     )
 
     rows = []
@@ -115,13 +115,24 @@ def generate_telemetry(dictionary: Dictionary, tlm_gui_dir: Path) -> int:
             packet_id_type.size,
             _type_column(packet_id_type),
             "Dec",
-            ["NULL"] * 4,
+            ["NULL"] * TLM_GUI_ENUM_SLOTS,
         )
     )
     offset += packet_id_type.size
     # Fw.Time: U16 time base, U8 time context, U32 seconds, U32 microseconds
-    rows.append(("Time Seconds", offset + 3, 4, ">I", "Dec", ["NULL"] * 4))
-    rows.append(("Time Microseconds", offset + 7, 4, ">I", "Dec", ["NULL"] * 4))
+    rows.append(
+        ("Time Seconds", offset + 3, 4, ">I", "Dec", ["NULL"] * TLM_GUI_ENUM_SLOTS)
+    )
+    rows.append(
+        (
+            "Time Microseconds",
+            offset + 7,
+            4,
+            ">I",
+            "Dec",
+            ["NULL"] * TLM_GUI_ENUM_SLOTS,
+        )
+    )
     offset += TIME_SIZE
 
     for channel_name in packet.members:

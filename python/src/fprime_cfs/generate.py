@@ -13,12 +13,19 @@ from .dictionary import Dictionary, DictionaryError
 from .telemetry import generate_telemetry
 
 
-def generate(dictionary: Dictionary, ground_system: Path):
+def generate(
+    dictionary: Dictionary,
+    ground_system: Path,
+    command_host: str = "127.0.0.1",
+    command_port: int = 1234,
+):
     """Generate all cFS GroundSystem configuration for the supplied dictionary
 
     Args:
         dictionary: parsed F Prime dictionary
         ground_system: path to a cFS-GroundSystem directory (containing Subsystems/)
+        command_host: address the command GUI sends command datagrams to
+        command_port: port the command GUI sends command datagrams to
     """
     ground_system = Path(ground_system)
     tlm_gui_dir = ground_system / "Subsystems" / "tlmGUI"
@@ -29,7 +36,9 @@ def generate(dictionary: Dictionary, ground_system: Path):
                 f"'{directory}' is not a directory; expected a cFS-GroundSystem checkout"
             )
     stream_id = generate_telemetry(dictionary, tlm_gui_dir)
-    message_id, skipped = generate_commands(dictionary, cmd_gui_dir)
+    message_id, skipped = generate_commands(
+        dictionary, cmd_gui_dir, command_host=command_host, command_port=command_port
+    )
     print(f"[INFO] Telemetry page generated for stream id {stream_id:#06x}")
     print(f"[INFO] Command page generated for message id {message_id:#06x}")
     for skip in skipped:
@@ -56,9 +65,25 @@ def main():
         type=Path,
         help="Path to the cFS-GroundSystem directory to write configuration into",
     )
+    parser.add_argument(
+        "--command-address",
+        default="127.0.0.1",
+        help="Command UDP address written to the command page. Default: %(default)s",
+    )
+    parser.add_argument(
+        "--command-port",
+        type=int,
+        default=1234,
+        help="Command UDP port written to the command page. Default: %(default)s",
+    )
     args = parser.parse_args()
     try:
-        generate(Dictionary(args.dictionary), args.ground_system)
+        generate(
+            Dictionary(args.dictionary),
+            args.ground_system,
+            command_host=args.command_address,
+            command_port=args.command_port,
+        )
     except DictionaryError as error:
         print(f"[ERROR] {error}", file=sys.stderr)
         return 1

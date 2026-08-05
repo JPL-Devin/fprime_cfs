@@ -19,6 +19,19 @@ permissions:
   contents: read
 
 jobs:
+  python-tests:
+    name: "Python Tool Tests"
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: "Install fprime-cfs package"
+        run: pip install "./python[test]"
+      - name: "Run pytest"
+        run: pytest python/tests
+
   unit-tests:
     name: "Unit Tests"
     runs-on: ubuntu-22.04

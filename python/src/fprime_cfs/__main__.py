@@ -9,6 +9,8 @@ cFS GroundSystem GUI against the generated configuration.
 import atexit
 import os
 import shutil
+import signal
+import subprocess
 import sys
 import tempfile
 
@@ -21,9 +23,8 @@ from fprime_gds.executables.cli import (
     DictionaryParser,
     LogDeployParser,
     ParserBase,
-    PluginArgumentParser,
 )
-from fprime_gds.executables.run_deployment import launch_app, launch_process
+from fprime_gds.executables.run_deployment import launch_app
 
 from . import comm
 from .dictionary import Dictionary
@@ -59,7 +60,7 @@ class CfsGroundSystemParser(ParserBase):
         """Handle arguments as parsed"""
         if not (args.ground_system_dir / "GroundSystem.py").is_file():
             raise Exception(
-                f"[ERROR] {args.ground_system_dir} does not contain GroundSystem.py"
+                f"{args.ground_system_dir} does not contain GroundSystem.py"
             )
         return args
 
@@ -77,16 +78,38 @@ def construct_ground_system(parsed_args, dictionary: Dictionary) -> Path:
         shutil.copytree(ground_system_dir, working_dir)
         ground_system_dir = working_dir
     print(f"[INFO] Generating cFS GroundSystem configuration in {ground_system_dir}")
-    generate(dictionary, ground_system_dir)
+    generate(
+        dictionary,
+        ground_system_dir,
+        command_host=parsed_args.command_address,
+        command_port=parsed_args.command_port,
+    )
     return ground_system_dir
 
 
 def launch_ground_system(ground_system_dir: Path):
-    """Launch the cFS GroundSystem GUI"""
-    return launch_process(
+    """Launch the cFS GroundSystem GUI
+
+    The GroundSystem is launched in its own session: on window close it SIGKILLs its
+    entire process group, which would otherwise take the runner (and the atexit cleanup
+    of the temporary configuration directory) down with it.
+    """
+    print("[INFO] Launching the cFS GroundSystem")
+    process = subprocess.Popen(
         [sys.executable, str(ground_system_dir / "GroundSystem.py")],
         env=os.environ.copy(),
+        start_new_session=True,
     )
+
+    def kill():
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except OSError:
+                pass
+
+    atexit.register(kill)
+    return process
 
 
 def parse_args():
@@ -95,7 +118,6 @@ def parse_args():
         DictionaryParser,
         BinaryDeployment,
         LogDeployParser,
-        PluginArgumentParser,
         CfsGroundSystemParser,
     ]
     if "FPRIME_GDS_CONFIG_PATH" in os.environ:
@@ -119,12 +141,12 @@ def main():
         atexit.register(bridge.stop)
         bridge.start()
 
-        run_app = not parsed_args.noapp and parsed_args.app is not None
-        launched_apps = [launch_app] if run_app else []
-        # cFS applications take no GDS connection arguments by default
-        if run_app and parsed_args.application_arguments is None:
-            parsed_args.application_arguments = []
-        processes = [launcher(parsed_args) for launcher in launched_apps]
+        processes = []
+        if not parsed_args.noapp and parsed_args.app is not None:
+            # cFS applications take no GDS connection arguments by default
+            if parsed_args.application_arguments is None:
+                parsed_args.application_arguments = []
+            processes.append(launch_app(parsed_args))
         processes.append(launch_ground_system(ground_system_dir))
         print(
             "[INFO] F Prime cFS GroundSystem is now running. CTRL-C to shutdown all components."

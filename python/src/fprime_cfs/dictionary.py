@@ -74,6 +74,15 @@ class Dictionary:
                 "Ensure the deployment was built against a version of fprime_cfs that defines it."
             )
 
+    def get_type_definition(self, qualified_name: str) -> dict:
+        """Get a typeDefinitions entry by qualified name"""
+        try:
+            return self.type_definitions[qualified_name]
+        except KeyError:
+            raise DictionaryError(
+                f"Type definition '{qualified_name}' not found in {self.path}"
+            )
+
     def get_apid(self, name: str) -> int:
         """Get an APID value from the ComCfg.Apid enumeration"""
         apid_enum = self.type_definitions.get("ComCfg.Apid")
