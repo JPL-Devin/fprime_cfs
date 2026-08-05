@@ -68,6 +68,13 @@ TEST(OffNominal, DisconnectedOutputs) {
     tester.testDisconnectedOutputs();
 }
 
+TEST(OffNominal, BufferReturnUntracked) {
+    COMMENT("Untracked buffers returned on bufferReturnIn are forwarded as-is with a default context");
+    REQUIREMENT("FPRIMECFS-CFSCMDROUTER-009");
+    FPrimeCfs::CfsCmdRouterTester tester;
+    tester.testBufferReturnUntracked();
+}
+
 TEST(Nominal, CommandResponseNoop) {
     COMMENT("cmdResponseIn is accepted as a no-op");
     REQUIREMENT("FPRIMECFS-CFSCMDROUTER-012");

@@ -400,7 +400,7 @@ void CfsBridgeTester ::testReceive() {
 void CfsBridgeTester ::testSchedIn() {
     this->configureAndSubscribe(ComCfg::Apid::FW_PACKET_COMMAND);
 
-    U8 payload[16];
+    U8 payload[16] = {0};
     this->fillRandom(payload, sizeof(payload));
     this->clearHistory();
     CFE_SB_MsgId_Atom_t msgIdValue = 0x1000 | ComCfg::Apid::FW_PACKET_COMMAND;

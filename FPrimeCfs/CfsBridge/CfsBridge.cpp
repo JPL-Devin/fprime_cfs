@@ -236,6 +236,7 @@ void CfsBridge ::dataReturnIn_handler(FwIndexType portNum, Fw::Buffer &data, con
 
 void CfsBridge ::schedIn_handler(FwIndexType portNum, U32 context)
 {
+    // Rate-group driven: no action is taken on the dispatch status (including MSG_DISPATCH_EXIT)
     (void)this->process();
 }
 

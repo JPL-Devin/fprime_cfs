@@ -9,8 +9,9 @@ messages are emitted whole (as CCSDS space packets) for deframing by a downstrea
 the space packet layer.
 
 `CfsBridge` is a **queued** component: incoming F Prime port calls on `dataIn` are queued, and the
-hosting cFS application drives the component by calling `process()` from its run loop. Each `process()`
-call drains the F Prime message queue and then polls the software bus pipe for at most one message.
+hosting cFS application drives the component by calling `process()` from its run loop, or by connecting
+the `schedIn` port to a rate group. Each `process()` call (or `schedIn` invocation) drains the F Prime
+message queue and then polls the software bus pipe for at most one message.
 
 ## Usage Examples
 
@@ -50,6 +51,7 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | output | `dataOut` | `Svc.ComDataWithContext` | Complete received SB message (a CCSDS space packet including headers) with a default context |
 | sync input | `dataReturnIn` | `Svc.ComDataWithContext` | Return of ownership for buffers sent on `dataOut` (no-op: SB owns its buffers) |
 | sync input | `comStatusIn` | `Fw.SuccessCondition` | Downstream com status; a SUCCESS unpauses one received message when flow control is enabled |
+| sync input | `schedIn` | `Svc.Sched` | Rate-group tick; each invocation performs one `process()` call (drain queue, poll SB once) |
 | async input | `dataIn` | `Svc.ComDataWithContext` | One or more complete CCSDS space packets, each transmitted on the SB as its own message |
 | output | `dataReturnOut` | `Svc.ComDataWithContext` | Return of ownership for buffers received on `dataIn` |
 | output | `comStatusOut` | `Fw.SuccessCondition` | Com status emitted after each transmission attempt, and once as a preroll |
@@ -69,6 +71,7 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | FPRIMECFS-CFSBRIDGE-009 | `CfsBridge` shall return ownership of every buffer received on `dataIn` via `dataReturnOut` and shall emit a `comStatusOut` SUCCESS after every transmission attempt, regardless of outcome | Unit test |
 | FPRIMECFS-CFSBRIDGE-010 | `CfsBridge` shall subscribe to native cFS messages when `subscribeCfs()` is called, forming the message ID with the secondary header flag set and the packet type bit set for `CfsMessageType::COMMAND` and clear for `CfsMessageType::TELEMETRY` | Unit test |
 | FPRIMECFS-CFSBRIDGE-011 | `CfsBridge` shall reject a `configure()` pipe depth exceeding the cFE `uint16` pipe depth range with `CFE_SB_BAD_ARGUMENT` rather than silently truncating | Unit test |
+| FPRIMECFS-CFSBRIDGE-013 | `CfsBridge` shall perform one `process()` call (drain the message queue and poll the software bus pipe once) for each invocation of `schedIn`, allowing rate-group driven operation | Unit test |
 | FPRIMECFS-CFSBRIDGE-012 | When configured with F Prime command wrapping enabled, `CfsBridge` shall transmit each F Prime command space packet (packet type command, no secondary header) as a valid cFS command packet: secondary header flag set, length field adjusted, and a 2-byte cFS command secondary header (function code `CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE` and a valid cFS XOR checksum) inserted between the primary header and the payload; telemetry packets and packets already carrying a secondary header shall be transmitted unmodified, and packets too large to wrap shall be dropped with a logged error | Unit test |
 
 ## Design
@@ -147,3 +150,4 @@ Coverage: 100% lines, 100% functions.
 | 2026-07-30 | Remove development-time subscription-success and message-received log output; operational error logging retained |
 | 2026-07-30 | Reject `configure()` pipe depths that would truncate in cFE's `uint16` pipe depth |
 | 2026-07-30 | Optional F Prime command wrapping: transmit F Prime command packets as valid cFS command packets (secondary header flag, function code, checksum) |
+| 2026-08-04 | Add `schedIn` port for rate-group driven operation (one `process()` per tick); bound the `dataIn` packet loop by the maximum packet count |

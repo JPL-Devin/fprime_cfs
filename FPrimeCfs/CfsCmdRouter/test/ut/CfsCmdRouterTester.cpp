@@ -199,6 +199,19 @@ void CfsCmdRouterTester ::testDisconnectedOutputs() {
     ASSERT_from_dataReturnOut_SIZE(3);
 }
 
+void CfsCmdRouterTester ::testBufferReturnUntracked() {
+    // A buffer that was never tracked is returned as-is with a default context
+    U8 bytes[4] = {0x0A, 0x0B, 0x0C, 0x0D};
+    Fw::Buffer buffer(bytes, sizeof(bytes));
+    this->invoke_to_bufferReturnIn(0, buffer);
+    ASSERT_from_dataReturnOut_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getSize(), sizeof(bytes));
+    const ComCfg::FrameContext defaultContext;
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context, defaultContext);
+    ASSERT_EVENTS_SIZE(0);
+}
+
 void CfsCmdRouterTester ::testCommandResponseNoop() {
     this->invoke_to_cmdResponseIn(0, 0x123, 7, Fw::CmdResponse::OK);
     ASSERT_from_dataReturnOut_SIZE(0);

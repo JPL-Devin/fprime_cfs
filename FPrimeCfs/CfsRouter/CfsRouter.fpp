@@ -63,8 +63,8 @@ module FPrimeCfs {
 
         @ Port for receiving back ownership of buffers sent on unknownDataOut from
         @ receivers that return data with a context (e.g. a FPrimeCfs.CfsCmdRouter
-        @ dataReturnOut). The supplied context is ignored; the buffer is returned
-        @ on dataReturnOut with the context it was originally received with.
+        @ dataReturnOut). The buffer is returned on dataReturnOut with the context it
+        @ was originally received with; untracked buffers use the supplied context.
         sync input port dataReturnIn: Svc.ComDataWithContext
 
         # ----------------------------------------------------------------------

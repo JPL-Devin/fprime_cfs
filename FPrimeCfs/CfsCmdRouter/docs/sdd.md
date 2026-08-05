@@ -68,8 +68,10 @@ function code or checksum and are routed to the unknown output with a warning ev
   event.
 - If the target output port for a computed route is not connected, the buffer is returned immediately rather
   than asserting or leaking.
-- `dataIn` and `bufferReturnIn` are guarded ports: the component mutex serializes access to the pending-buffer
-  map when the routing and buffer-return paths execute on different threads.
+- `dataIn` and `bufferReturnIn` are sync ports; an internal mutex serializes access to the pending-buffer
+  map when the routing and buffer-return paths execute on different threads. Sync ports (rather than
+  guarded) permit a downstream consumer to return a buffer synchronously on the same call stack that
+  delivered it without re-entering the component lock.
 
 ## Requirements
 

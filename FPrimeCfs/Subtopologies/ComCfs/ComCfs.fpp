@@ -19,10 +19,11 @@ module ComCfs {
             CFE_Status_t status = ComCfs::cfsBridge.configure(ComCfsConfig::Bridge::pipeDepth);
             if (status != CFE_SUCCESS) {
                 Fw::Logger::log("[ERROR] Failed to configure ComCfs::cfsBridge: 0x%08x\\n", status);
-            }
-            status = ComCfs::cfsBridge.subscribe(ComCfs::BridgeConfig::uplinkApid);
-            if (status != CFE_SUCCESS) {
-                Fw::Logger::log("[ERROR] Failed to subscribe ComCfs::cfsBridge to uplink commands: 0x%08x\\n", status);
+            } else {
+                status = ComCfs::cfsBridge.subscribe(ComCfs::BridgeConfig::uplinkApid);
+                if (status != CFE_SUCCESS) {
+                    Fw::Logger::log("[ERROR] Failed to subscribe ComCfs::cfsBridge to uplink commands: 0x%08x\\n", status);
+                }
             }
         }
         """
