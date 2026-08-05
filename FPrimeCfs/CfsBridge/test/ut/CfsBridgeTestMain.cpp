@@ -133,6 +133,13 @@ TEST(Nominal, Receive) {
     tester.testReceive();
 }
 
+TEST(Nominal, SchedIn) {
+    COMMENT("A schedIn tick drains the message queue and polls the software bus once");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testSchedIn();
+}
+
 TEST(Nominal, Preroll) {
     COMMENT("process() emits a single com status success (preroll) once subscribed");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-008");
@@ -145,6 +152,13 @@ TEST(Nominal, ReceiveNoMessage) {
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-005");
     FPrimeCfs::CfsBridgeTester tester;
     tester.testReceiveNoMessage();
+}
+
+TEST(OffNominal, ReceiveAllocationFailure) {
+    COMMENT("Received messages are dropped when buffer allocation fails");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-014");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testReceiveAllocationFailure();
 }
 
 TEST(OffNominal, ReceiveError) {

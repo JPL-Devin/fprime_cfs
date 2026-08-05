@@ -126,11 +126,30 @@ void CfsBridge ::poll() {
 
         // Forward the complete message (a CCSDS space packet) with a default context; a downstream
         // deframer (e.g. Svc.Ccsds.SpacePacketDeframer) derives the APID and other fields from the headers
-        Fw::Buffer fwBuffer(reinterpret_cast<U8*>(received_message), static_cast<FwSizeType>(message_size));
         ComCfg::FrameContext context;
-        this->m_paused = true;
-        // Send the message out of this port
-        this->dataOut_out(0, fwBuffer, context);
+        if (this->isConnected_bufferAllocate_OutputPort(0)) {
+            // Copy into an allocated buffer: SB buffers are valid only until the next receive on the
+            // pipe, and downstream consumers may hold the buffer past this invocation
+            Fw::Buffer copy = this->bufferAllocate_out(0, static_cast<FwSizeType>(message_size));
+            if ((copy.getData() == nullptr) or (copy.getSize() < static_cast<FwSizeType>(message_size))) {
+                Fw::Logger::log("[ERROR] Dropping received message: failed to allocate %" PRI_FwSizeType " bytes\n",
+                                static_cast<FwSizeType>(message_size));
+                if (copy.getData() != nullptr) {
+                    this->bufferDeallocate_out(0, copy);
+                }
+                return;
+            }
+            (void)std::memcpy(copy.getData(), received_message, static_cast<size_t>(message_size));
+            copy.setSize(static_cast<FwSizeType>(message_size));
+            this->m_paused = true;
+            this->dataOut_out(0, copy, context);
+        } else {
+            // Zero-copy: the buffer aliases SB memory valid only until the next poll; all downstream
+            // consumers must return it synchronously within this invocation
+            Fw::Buffer fwBuffer(reinterpret_cast<U8*>(received_message), static_cast<FwSizeType>(message_size));
+            this->m_paused = true;
+            this->dataOut_out(0, fwBuffer, context);
+        }
     } else if (status != CFE_SB_NO_MESSAGE) {
         Fw::Logger::log("[ERROR] Error receiving message from cFS pipe: 0x%08x\n", status);
     }
@@ -144,7 +163,11 @@ void CfsBridge ::dataIn_handler(FwIndexType portNum, Fw::Buffer &data, const Com
     U8* const buffer_data = data.getData();
     const FwSizeType buffer_size = data.getSize();
     FwSizeType offset = 0;
-    while ((buffer_size - offset) >= CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE) {
+    // Each complete packet is at least header + 1 payload byte, bounding the packet count
+    const FwSizeType max_packets = buffer_size / (CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1);
+    for (FwSizeType packet_count = 0;
+         (packet_count < max_packets) && ((buffer_size - offset) >= CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE);
+         packet_count++) {
         // CCSDS packet data length field is the number of payload bytes minus one
         const FwSizeType packet_size = CFS_BRIDGE_SPACE_PACKET_HEADER_SIZE + 1 +
             ((static_cast<FwSizeType>(buffer_data[offset + CFS_BRIDGE_SPACE_PACKET_LENGTH_OFFSET]) << 8) |
@@ -227,7 +250,17 @@ CFE_Status_t CfsBridge ::transmitWrappedCommand(const U8* packet, const FwSizeTy
 
 void CfsBridge ::dataReturnIn_handler(FwIndexType portNum, Fw::Buffer &data, const ComCfg::FrameContext &context)
 {
-    // cFS does not return messages explicitly
+    if (this->isConnected_bufferAllocate_OutputPort(0)) {
+        // dataOut buffers are allocator-owned copies; return them to the allocator
+        this->bufferDeallocate_out(0, data);
+    }
+    // Otherwise zero-copy: cFS does not return messages explicitly
+}
+
+void CfsBridge ::schedIn_handler(FwIndexType portNum, U32 context)
+{
+    // Rate-group driven: no action is taken on the dispatch status (including MSG_DISPATCH_EXIT)
+    (void)this->process();
 }
 
 void CfsBridge ::comStatusIn_handler(FwIndexType portNum, Fw::Success &status)

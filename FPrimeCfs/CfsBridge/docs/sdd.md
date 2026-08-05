@@ -9,8 +9,9 @@ messages are emitted whole (as CCSDS space packets) for deframing by a downstrea
 the space packet layer.
 
 `CfsBridge` is a **queued** component: incoming F Prime port calls on `dataIn` are queued, and the
-hosting cFS application drives the component by calling `process()` from its run loop. Each `process()`
-call drains the F Prime message queue and then polls the software bus pipe for at most one message.
+hosting cFS application drives the component by calling `process()` from its run loop, or by connecting
+the `schedIn` port to a rate group. Each `process()` call (or `schedIn` invocation) drains the F Prime
+message queue and then polls the software bus pipe for at most one message.
 
 ## Usage Examples
 
@@ -48,8 +49,11 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | Kind | Name | Type | Description |
 |---|---|---|---|
 | output | `dataOut` | `Svc.ComDataWithContext` | Complete received SB message (a CCSDS space packet including headers) with a default context |
-| sync input | `dataReturnIn` | `Svc.ComDataWithContext` | Return of ownership for buffers sent on `dataOut` (no-op: SB owns its buffers) |
+| sync input | `dataReturnIn` | `Svc.ComDataWithContext` | Return of ownership for buffers sent on `dataOut` (deallocated via `bufferDeallocate` when `bufferAllocate` is connected; no-op otherwise) |
 | sync input | `comStatusIn` | `Fw.SuccessCondition` | Downstream com status; a SUCCESS unpauses one received message when flow control is enabled |
+| sync input | `schedIn` | `Svc.Sched` | Rate-group tick; each invocation performs one `process()` call (drain queue, poll SB once) |
+| output | `bufferAllocate` | `Fw.BufferGet` | Allocates a buffer to copy each received SB message into; when unconnected, received messages are emitted zero-copy and must be consumed synchronously |
+| output | `bufferDeallocate` | `Fw.BufferSend` | Returns allocated `dataOut` buffers to the allocator once returned on `dataReturnIn` |
 | async input | `dataIn` | `Svc.ComDataWithContext` | One or more complete CCSDS space packets, each transmitted on the SB as its own message |
 | output | `dataReturnOut` | `Svc.ComDataWithContext` | Return of ownership for buffers received on `dataIn` |
 | output | `comStatusOut` | `Fw.SuccessCondition` | Com status emitted after each transmission attempt, and once as a preroll |
@@ -70,6 +74,8 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | FPRIMECFS-CFSBRIDGE-010 | `CfsBridge` shall subscribe to native cFS messages when `subscribeCfs()` is called, forming the message ID with the secondary header flag set and the packet type bit set for `CfsMessageType::COMMAND` and clear for `CfsMessageType::TELEMETRY` | Unit test |
 | FPRIMECFS-CFSBRIDGE-011 | `CfsBridge` shall reject a `configure()` pipe depth exceeding the cFE `uint16` pipe depth range with `CFE_SB_BAD_ARGUMENT` rather than silently truncating | Unit test |
 | FPRIMECFS-CFSBRIDGE-012 | When configured with F Prime command wrapping enabled, `CfsBridge` shall transmit each F Prime command space packet (packet type command, no secondary header) as a valid cFS command packet: secondary header flag set, length field adjusted, and a 2-byte cFS command secondary header (function code `CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE` and a valid cFS XOR checksum) inserted between the primary header and the payload; telemetry packets and packets already carrying a secondary header shall be transmitted unmodified, and packets too large to wrap shall be dropped with a logged error | Unit test |
+| FPRIMECFS-CFSBRIDGE-013 | `CfsBridge` shall perform one `process()` call (drain the message queue and poll the software bus pipe once) for each invocation of `schedIn`, allowing rate-group driven operation | Unit test |
+| FPRIMECFS-CFSBRIDGE-014 | When `bufferAllocate` is connected, `CfsBridge` shall copy each received software bus message into an allocated buffer before emitting it on `dataOut`, shall deallocate the buffer when returned on `dataReturnIn`, and shall drop the message with a logged error when allocation fails | Unit test |
 
 ## Design
 
@@ -102,10 +108,17 @@ before delivering the F Prime command bytes to the command dispatcher.
 ### Receiving (cFS → F Prime)
 
 `process()` polls the pipe with `CFE_SB_ReceiveBuffer(..., CFE_SB_POLL)` (at most one message per
-call). The complete message pointer and its length (from `CFE_MSG_GetSize()`) are wrapped in an
-`Fw::Buffer` that aliases the SB buffer — no copy is performed, which is safe because SB buffers
-remain valid until the next `CFE_SB_ReceiveBuffer()` call on the pipe and the downstream consumers of
-`dataOut` operate synchronously within `process()`. `dataReturnIn` is therefore a no-op.
+call). When `bufferAllocate` is connected, the message is copied into a buffer obtained from the
+allocator before being emitted on `dataOut`: SB buffers remain valid only until the next
+`CFE_SB_ReceiveBuffer()` call on the pipe, and the copy lets downstream consumers hold the buffer
+past the current invocation (e.g. deferred-return routes such as file uplink). The copy is returned
+to the allocator via `bufferDeallocate` when it comes back on `dataReturnIn`; a failed allocation
+drops the message with a logged error.
+
+When `bufferAllocate` is not connected, the message pointer and its length (from
+`CFE_MSG_GetSize()`) are wrapped in an `Fw::Buffer` that aliases the SB buffer — no copy is
+performed, which is safe only when every downstream consumer of `dataOut` operates synchronously
+within `process()`. In this mode `dataReturnIn` is a no-op.
 
 The message is a CCSDS space packet: it is emitted whole with a default frame context so that a
 downstream deframer (e.g. `Svc::Ccsds::SpacePacketDeframer`) can validate the primary header and
@@ -147,3 +160,5 @@ Coverage: 100% lines, 100% functions.
 | 2026-07-30 | Remove development-time subscription-success and message-received log output; operational error logging retained |
 | 2026-07-30 | Reject `configure()` pipe depths that would truncate in cFE's `uint16` pipe depth |
 | 2026-07-30 | Optional F Prime command wrapping: transmit F Prime command packets as valid cFS command packets (secondary header flag, function code, checksum) |
+| 2026-08-04 | Add `schedIn` port for rate-group driven operation (one `process()` per tick); bound the `dataIn` packet loop by the maximum packet count |
+| 2026-08-04 | Add `bufferAllocate`/`bufferDeallocate` ports: received SB messages are copied into allocated buffers so downstream consumers may hold them past the polling cycle |

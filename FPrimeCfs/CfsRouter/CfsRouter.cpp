@@ -54,15 +54,23 @@ void CfsRouter ::cmdResponseIn_handler(FwIndexType portNum,
 
 void CfsRouter ::bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) {
     // Ownership of a buffer sent on cfsCommandOut, cfsTelemetryOut, or unknownDataOut
-    // has been returned; complete the transfer back to the deframer with the context
-    // the data was originally received with
-    ComCfg::FrameContext context;
-    (void)this->m_pending.remove(fwBuffer.getData(), context);
-    this->returnData(fwBuffer, context);
+    // has been returned; complete the transfer back to the deframer with the original
+    // buffer and the context the data was received with
+    const ComCfg::FrameContext defaultContext;
+    this->restoreAndReturn(fwBuffer, defaultContext);
 }
 
 void CfsRouter ::fileBufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) {
     this->bufferReturnIn_handler(portNum, fwBuffer);
+}
+
+void CfsRouter ::dataReturnIn_handler(FwIndexType portNum,
+                                      Fw::Buffer& data,
+                                      const ComCfg::FrameContext& context) {
+    // The buffer is returned with the context it was originally received with,
+    // restored from the pending-buffer map; the supplied context is the fallback
+    // when the buffer is not tracked
+    this->restoreAndReturn(data, context);
 }
 
 // ----------------------------------------------------------------------
@@ -82,12 +90,29 @@ void CfsRouter ::returnData(Fw::Buffer& data, const ComCfg::FrameContext& contex
     this->dataReturnOut_out(0, data, context);
 }
 
-Fw::Success CfsRouter ::trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context) {
-    const Fw::Success status = this->m_pending.insert(buffer.getData(), context);
+Fw::Success CfsRouter ::trackPending(const Fw::Buffer& outgoing,
+                                     const Fw::Buffer& original,
+                                     const ComCfg::FrameContext& context) {
+    PendingReturn pending;
+    pending.original = original;
+    pending.context = context;
+    this->m_pendingLock.lock();
+    const Fw::Success status = this->m_pending.insert(outgoing.getData(), pending);
+    this->m_pendingLock.unlock();
     if (status != Fw::Success::SUCCESS) {
         this->log_WARNING_HI_TooManyPendingBuffers(static_cast<U16>(context.get_apid()));
     }
     return status;
+}
+
+void CfsRouter ::restoreAndReturn(Fw::Buffer& returned, const ComCfg::FrameContext& fallbackContext) {
+    PendingReturn pending;
+    pending.original = returned;
+    pending.context = fallbackContext;
+    this->m_pendingLock.lock();
+    (void)this->m_pending.remove(returned.getData(), pending);
+    this->m_pendingLock.unlock();
+    this->returnData(pending.original, pending.context);
 }
 
 void CfsRouter ::routeFprimeCommand(const CfsRouteEntry& route,
@@ -129,7 +154,7 @@ void CfsRouter ::routeCfsCommand(const CfsRouteEntry& route, Fw::Buffer& data, c
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_ROUTER_CMD_SEC_HDR_SIZE, data.getSize() - CFS_ROUTER_CMD_SEC_HDR_SIZE);
-    const Fw::Success trackStatus = this->trackPending(payload, context);
+    const Fw::Success trackStatus = this->trackPending(payload, data, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         this->cfsCommandOut_out(index, functionCode, payload);
     } else {
@@ -159,7 +184,7 @@ void CfsRouter ::routeCfsTelemetry(const CfsRouteEntry& route, Fw::Buffer& data,
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_ROUTER_TLM_SEC_HDR_SIZE, data.getSize() - CFS_ROUTER_TLM_SEC_HDR_SIZE);
-    const Fw::Success trackStatus = this->trackPending(payload, context);
+    const Fw::Success trackStatus = this->trackPending(payload, data, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         this->cfsTelemetryOut_out(index, time, payload);
     } else {
@@ -172,7 +197,7 @@ void CfsRouter ::routeFile(Fw::Buffer& data, const ComCfg::FrameContext& context
         this->returnData(data, context);
         return;
     }
-    const Fw::Success trackStatus = this->trackPending(data, context);
+    const Fw::Success trackStatus = this->trackPending(data, data, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         // Ownership transfers to the receiver and returns via fileBufferReturnIn
         this->fileOut_out(0, data);
@@ -186,7 +211,7 @@ void CfsRouter ::routeUnknown(Fw::Buffer& data, const ComCfg::FrameContext& cont
         this->returnData(data, context);
         return;
     }
-    const Fw::Success trackStatus = this->trackPending(data, context);
+    const Fw::Success trackStatus = this->trackPending(data, data, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         // Ownership transfers to the receiver and returns via bufferReturnIn
         this->unknownDataOut_out(0, data, context);

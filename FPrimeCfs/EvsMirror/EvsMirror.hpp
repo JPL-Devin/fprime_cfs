@@ -17,7 +17,7 @@ class EvsMirror final : public EvsMirrorComponentBase {
     // ----------------------------------------------------------------------
 
     //! Construct EvsMirror object
-    EvsMirror(const char* const compName  //!< The component name
+    explicit EvsMirror(const char* const compName  //!< The component name
     );
 
     //! Destroy EvsMirror object

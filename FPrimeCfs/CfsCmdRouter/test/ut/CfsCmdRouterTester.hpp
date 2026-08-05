@@ -54,6 +54,9 @@ class CfsCmdRouterTester final : public CfsCmdRouterGTestBase {
     //! Disconnected route outputs return the buffer rather than assert or leak
     void testDisconnectedOutputs();
 
+    //! Untracked buffers returned on bufferReturnIn are forwarded as-is with a default context
+    void testBufferReturnUntracked();
+
     //! cmdResponseIn is accepted as a no-op
     void testCommandResponseNoop();
 

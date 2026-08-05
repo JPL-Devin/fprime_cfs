@@ -38,11 +38,27 @@ module FPrimeCfs {
         output port dataOut: Svc.ComDataWithContext
 
         @ Port to return received cFS message data and context back to the cFS bridge component once F Prime has
-        @ finished thus completing the data ownership transfer back to the cFS bridge component.
+        @ finished thus completing the data ownership transfer back to the cFS bridge component. When bufferAllocate
+        @ is connected, the returned buffer is deallocated via bufferDeallocate.
         sync input port dataReturnIn: Svc.ComDataWithContext
+
+        @ Port for allocating a buffer to copy each received software bus message into before emitting it on
+        @ dataOut. When connected, dataOut buffers are owned by the allocator and remain valid until returned on
+        @ dataReturnIn. When unconnected, received messages are emitted zero-copy: the buffer aliases software bus
+        @ memory valid only until the next poll, so all downstream consumers must return it synchronously.
+        output port bufferAllocate: Fw.BufferGet
+
+        @ Port for deallocating buffers allocated via bufferAllocate once they are returned on dataReturnIn
+        output port bufferDeallocate: Fw.BufferSend
 
         @ Since the cFS bridge may be paired with a framer stack, it must accept com status signals
         sync input port comStatusIn: Fw.SuccessCondition
+
+        @ Scheduled input driving the bridge: each invocation drains the component's message
+        @ queue and polls the cFS software bus once (equivalent to one process() call).
+        @ Deployments may drive the bridge from a rate group via this port instead of
+        @ calling process() from a dedicated loop.
+        sync input port schedIn: Svc.Sched
 
         # The cFS bridge component also acts as the sending "ComDriver": it transmits framed space packets from the
         # F Prime framework out over the cFS software bus.

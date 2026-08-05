@@ -121,7 +121,9 @@ void CfsCmdRouterTester ::testRouteBuffer() {
     // Return the buffer; it is forwarded to dataReturnOut
     this->invoke_to_bufferReturnIn(0, payload);
     ASSERT_from_dataReturnOut_SIZE(1);
-    // The buffer is returned with the context it was received with
+    // The original buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getSize(), sizeof(bytes));
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), TEST_APID);
     ASSERT_EVENTS_SIZE(0);
 }
@@ -138,6 +140,7 @@ void CfsCmdRouterTester ::testRouteUnknown() {
     this->invoke_to_bufferReturnIn(0, buffer);
     ASSERT_from_dataReturnOut_SIZE(1);
     // The buffer is returned with the context it was received with
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
     ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context.get_apid(), TEST_APID);
     ASSERT_EVENTS_SIZE(0);
 }
@@ -194,6 +197,19 @@ void CfsCmdRouterTester ::testDisconnectedOutputs() {
     CfsCmdRouterTester::setValidChecksum(TEST_APID, 0, bytes, sizeof(bytes));
     this->sendData(TEST_APID, true, bytes, sizeof(bytes));
     ASSERT_from_dataReturnOut_SIZE(3);
+}
+
+void CfsCmdRouterTester ::testBufferReturnUntracked() {
+    // A buffer that was never tracked is returned as-is with a default context
+    U8 bytes[4] = {0x0A, 0x0B, 0x0C, 0x0D};
+    Fw::Buffer buffer(bytes, sizeof(bytes));
+    this->invoke_to_bufferReturnIn(0, buffer);
+    ASSERT_from_dataReturnOut_SIZE(1);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getData(), bytes);
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).data.getSize(), sizeof(bytes));
+    const ComCfg::FrameContext defaultContext;
+    ASSERT_EQ(this->fromPortHistory_dataReturnOut->at(0).context, defaultContext);
+    ASSERT_EVENTS_SIZE(0);
 }
 
 void CfsCmdRouterTester ::testCommandResponseNoop() {

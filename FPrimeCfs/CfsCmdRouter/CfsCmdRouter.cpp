@@ -62,11 +62,15 @@ void CfsCmdRouter ::cmdResponseIn_handler(FwIndexType portNum,
 
 void CfsCmdRouter ::bufferReturnIn_handler(FwIndexType portNum, Fw::Buffer& fwBuffer) {
     // Ownership of a buffer sent on bufferOut or unknownDataOut has been returned;
-    // complete the transfer back to the sender with the context the data was
-    // originally received with
-    ComCfg::FrameContext context;
-    (void)this->m_pending.remove(fwBuffer.getData(), context);
-    this->returnData(fwBuffer, context);
+    // complete the transfer back to the sender with the original buffer and the
+    // context the data was received with. Untracked buffers are forwarded as-is
+    // with a default context.
+    PendingReturn pending;
+    pending.original = fwBuffer;
+    this->m_pendingLock.lock();
+    (void)this->m_pending.remove(fwBuffer.getData(), pending);
+    this->m_pendingLock.unlock();
+    this->returnData(pending.original, pending.context);
 }
 
 // ----------------------------------------------------------------------
@@ -106,8 +110,15 @@ void CfsCmdRouter ::returnData(Fw::Buffer& data, const ComCfg::FrameContext& con
     this->dataReturnOut_out(0, data, context);
 }
 
-Fw::Success CfsCmdRouter ::trackPending(const Fw::Buffer& buffer, const ComCfg::FrameContext& context) {
-    const Fw::Success status = this->m_pending.insert(buffer.getData(), context);
+Fw::Success CfsCmdRouter ::trackPending(const Fw::Buffer& outgoing,
+                                        const Fw::Buffer& original,
+                                        const ComCfg::FrameContext& context) {
+    PendingReturn pending;
+    pending.original = original;
+    pending.context = context;
+    this->m_pendingLock.lock();
+    const Fw::Success status = this->m_pending.insert(outgoing.getData(), pending);
+    this->m_pendingLock.unlock();
     if (status != Fw::Success::SUCCESS) {
         this->log_WARNING_HI_TooManyPendingBuffers(static_cast<U16>(context.get_apid()));
     }
@@ -140,7 +151,7 @@ void CfsCmdRouter ::routeBuffer(const CfsCmdRouteEntry& route, Fw::Buffer& data,
     // Payload is the data after the secondary header; ownership transfers to the receiver
     // and returns via bufferReturnIn
     Fw::Buffer payload(data.getData() + CFS_CMD_ROUTER_SEC_HDR_SIZE, data.getSize() - CFS_CMD_ROUTER_SEC_HDR_SIZE);
-    const Fw::Success trackStatus = this->trackPending(payload, context);
+    const Fw::Success trackStatus = this->trackPending(payload, data, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         this->bufferOut_out(index, functionCode, payload);
     } else {
@@ -153,7 +164,7 @@ void CfsCmdRouter ::routeUnknown(Fw::Buffer& data, const ComCfg::FrameContext& c
         this->returnData(data, context);
         return;
     }
-    const Fw::Success trackStatus = this->trackPending(data, context);
+    const Fw::Success trackStatus = this->trackPending(data, data, context);
     if (trackStatus == Fw::Success::SUCCESS) {
         // Ownership transfers to the receiver and returns via bufferReturnIn
         this->unknownDataOut_out(0, data, context);
