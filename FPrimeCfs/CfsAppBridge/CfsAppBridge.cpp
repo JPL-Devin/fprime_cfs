@@ -37,7 +37,7 @@ void CfsAppBridge ::cfsCommandIn_handler(FwIndexType portNum, U8 functionCode, F
 void CfsAppBridge ::comIn_handler(FwIndexType portNum, Fw::ComBuffer& data, U32 context) {
     ComCfg::FrameContext frameContext;
     frameContext.set_apid(this->mapDescriptorToApid(data));
-    this->copyAndSend(data.getBuffAddr(), data.getBuffLength(), frameContext);
+    this->copyAndSend(data.getBuffAddr(), data.getSize(), frameContext);
 }
 
 void CfsAppBridge ::dataReturnIn_handler(FwIndexType portNum,
