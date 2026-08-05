@@ -5,29 +5,18 @@ module FPrimeCfs {
     @ rebuilding the CCSDS primary header (length field and secondary header
     @ flag). The inverse of FPrimeCfs.CfsTlmFramer, for ground-facing bridges
     @ (e.g. a GDS bridge) whose downstream consumers expect bare F Prime
-    @ packets inside the space packets. Command packets and packets without
-    @ the secondary header flag are forwarded unchanged (as a copy).
+    @ packets inside the space packets. The strip is performed in place: the
+    @ rebuilt primary header is written over the trailing bytes of the
+    @ secondary header and the buffer's data pointer is advanced, so no
+    @ allocation or copy is made. Command packets and packets without the
+    @ secondary header flag are forwarded unchanged.
     passive component CfsTlmStripper {
 
         import Svc.Framer
 
-        @ Port to allocate a buffer for the stripped packet
-        output port bufferAllocate: Fw.BufferGet
-
-        @ Port to deallocate a buffer once the stripped packet is returned
-        output port bufferDeallocate: Fw.BufferSend
-
         # ----------------------------------------------------------------------
         # Events
         # ----------------------------------------------------------------------
-
-        @ The allocator did not return a buffer large enough for the stripped packet;
-        @ the packet was dropped
-        event AllocationFailed(
-                $size: U32 @< The requested allocation size in bytes
-            ) \
-            severity warning high \
-            format "Failed to allocate a {} byte buffer for a stripped telemetry packet"
 
         @ An incoming buffer was not a complete space packet; the packet was dropped
         event MalformedPacket(
