@@ -3,7 +3,7 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fprime-cfs-gds"
+name = "fprime-cfs"
 version = "0.1.0"
 description = "F Prime dictionary conversion and runner tooling for the cFS GroundSystem GDS"
 readme = "README.md"
@@ -14,9 +14,9 @@ dependencies = [
 ]
 
 [project.scripts]
-fprime-cfs-gds = "fprime_cfs_gds.__main__:main"
-fprime-cfs-gds-config = "fprime_cfs_gds.generate:main"
-fprime-cfs-gds-comm = "fprime_cfs_gds.comm:main"
+fprime-cfs = "fprime_cfs.__main__:main"
+fprime-cfs-config = "fprime_cfs.generate:main"
+fprime-cfs-comm = "fprime_cfs.comm:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

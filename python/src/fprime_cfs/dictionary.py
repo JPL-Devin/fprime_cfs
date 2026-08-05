@@ -1,4 +1,4 @@
-"""fprime_cfs_gds.dictionary: F Prime JSON dictionary parsing helpers
+"""fprime_cfs.dictionary: F Prime JSON dictionary parsing helpers
 
 Reads the F Prime JSON dictionary and resolves the information needed to build cFS
 GroundSystem configuration: primitive type layouts, dictionary constants, the ComCfg.Apid

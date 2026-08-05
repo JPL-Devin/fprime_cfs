@@ -1,4 +1,4 @@
-"""fprime_cfs_gds.generate: cFS GroundSystem configuration generation entry point
+"""fprime_cfs.generate: cFS GroundSystem configuration generation entry point
 
 Reads an F Prime JSON dictionary and writes cFS GroundSystem telemetry and command
 configuration into a cFS-GroundSystem checkout (or a mirror of its Subsystems layout).
@@ -40,7 +40,7 @@ def generate(dictionary: Dictionary, ground_system: Path):
 
 
 def main():
-    """Entry point for fprime-cfs-gds-config"""
+    """Entry point for fprime-cfs-config"""
     parser = argparse.ArgumentParser(
         description="Generate cFS GroundSystem configuration from an F Prime dictionary"
     )

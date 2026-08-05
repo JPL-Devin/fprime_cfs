@@ -119,7 +119,11 @@ def main():
         atexit.register(bridge.stop)
         bridge.start()
 
-        launched_apps = [launch_app] if parsed_args.app is not None else []
+        run_app = not parsed_args.noapp and parsed_args.app is not None
+        launched_apps = [launch_app] if run_app else []
+        # cFS applications take no GDS connection arguments by default
+        if run_app and parsed_args.application_arguments is None:
+            parsed_args.application_arguments = []
         processes = [launcher(parsed_args) for launcher in launched_apps]
         processes.append(launch_ground_system(ground_system_dir))
         print(

@@ -1,4 +1,4 @@
-"""Tests for the fprime_cfs_gds configuration generators"""
+"""Tests for the fprime_cfs configuration generators"""
 
 import copy
 import json
@@ -6,10 +6,10 @@ import pickle
 
 import pytest
 
-from fprime_cfs_gds.comm import split_space_packets
-from fprime_cfs_gds.commands import generate_commands
-from fprime_cfs_gds.dictionary import Dictionary, DictionaryError
-from fprime_cfs_gds.telemetry import generate_telemetry
+from fprime_cfs.comm import split_space_packets
+from fprime_cfs.commands import generate_commands
+from fprime_cfs.dictionary import Dictionary, DictionaryError
+from fprime_cfs.telemetry import generate_telemetry
 
 BASE_DICTIONARY = {
     "metadata": {"deploymentName": "Test"},

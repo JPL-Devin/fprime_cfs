@@ -1,4 +1,4 @@
-# fprime-cfs-gds
+# fprime-cfs
 
 Tooling for running the [cFS GroundSystem](https://github.com/nasa/cFS-GroundSystem) as the
 GDS for an F Prime deployment integrated through `fprime_cfs`.
@@ -11,21 +11,21 @@ pip install ./python  # from the fprime_cfs checkout root
 
 ## Tools
 
-### `fprime-cfs-gds`
+### `fprime-cfs`
 
 Runs the full cFS GroundSystem GDS: generates the GroundSystem configuration from the
 F Prime dictionary, starts the TM/TC frame bridge to the `fprime_gds` GdsBridge cFS
 application, and launches the GroundSystem GUI.
 
 ```bash
-fprime-cfs-gds --dictionary <deployment>/dict/*TopologyDictionary.json \
+fprime-cfs --dictionary <deployment>/dict/*TopologyDictionary.json \
     --ground-system-dir <cfs-checkout>/tools/cFS-GroundSystem
 ```
 
 The GroundSystem GUI has its own dependencies (PyQt5, pyzmq); install them from the
 cFS-GroundSystem checkout before running.
 
-### `fprime-cfs-gds-config`
+### `fprime-cfs-config`
 
 Generates the cFS GroundSystem configuration only:
 
@@ -42,15 +42,15 @@ Generates the cFS GroundSystem configuration only:
   with a warning.
 
 ```bash
-fprime-cfs-gds-config --dictionary <dictionary.json> --ground-system <cFS-GroundSystem dir>
+fprime-cfs-config --dictionary <dictionary.json> --ground-system <cFS-GroundSystem dir>
 ```
 
-### `fprime-cfs-gds-comm`
+### `fprime-cfs-comm`
 
 Runs only the communication bridge: TCP CCSDS TM/TC frames (GdsBridge, default port
 15010) on one side, bare space packets over UDP (GroundSystem telemetry port 2234,
 command port 1234) on the other.
 
 ```bash
-fprime-cfs-gds-comm --dictionary <dictionary.json>
+fprime-cfs-comm --dictionary <dictionary.json>
 ```

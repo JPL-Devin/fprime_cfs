@@ -1,4 +1,4 @@
-"""fprime_cfs_gds.comm: communication bridge between the GdsBridge app and the cFS GroundSystem
+"""fprime_cfs.comm: communication bridge between the GdsBridge app and the cFS GroundSystem
 
 The fprime_gds GdsBridge cFS application exposes a TCP server carrying CCSDS TM frames on
 downlink and expecting CCSDS TC frames on uplink. The cFS GroundSystem exchanges bare
@@ -226,7 +226,7 @@ def main():
     args = parser.parse_args()
     bridge = bridge_from_arguments(args, Dictionary(args.dictionary))
     threads = bridge.start()
-    print("[INFO] fprime-cfs-gds-comm bridge running. CTRL-C to exit.")
+    print("[INFO] fprime-cfs-comm bridge running. CTRL-C to exit.")
     try:
         while all(thread.is_alive() for thread in threads):
             time.sleep(1)
