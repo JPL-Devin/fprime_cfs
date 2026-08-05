@@ -1,4 +1,0 @@
-[console_scripts]
-fprime-cfs-gds = fprime_cfs_gds.__main__:main
-fprime-cfs-gds-comm = fprime_cfs_gds.comm:main
-fprime-cfs-gds-config = fprime_cfs_gds.generate:main
