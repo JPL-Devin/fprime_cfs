@@ -19,7 +19,9 @@ import sys
 import threading
 import time
 
-from fprime_gds.common.communication.ccsds.space_data_link import SpaceDataLinkFramerDeframer
+from fprime_gds.common.communication.ccsds.space_data_link import (
+    SpaceDataLinkFramerDeframer,
+)
 
 from .dictionary import Dictionary
 
@@ -41,7 +43,7 @@ def split_space_packets(data: bytes):
         if offset + packet_length > len(data):
             break
         if (stream_id & IDLE_APID) != IDLE_APID:
-            packets.append(data[offset:offset + packet_length])
+            packets.append(data[offset : offset + packet_length])
         offset += packet_length
     return packets
 
@@ -49,8 +51,17 @@ def split_space_packets(data: bytes):
 class GroundSystemBridge:
     """Bidirectional bridge between the GdsBridge TCP server and the cFS GroundSystem"""
 
-    def __init__(self, gds_address, gds_port, telemetry_address="127.0.0.1", telemetry_port=2234,
-                 command_port=1234, scid=None, vcid=1, frame_size=None):
+    def __init__(
+        self,
+        gds_address,
+        gds_port,
+        telemetry_address="127.0.0.1",
+        telemetry_port=2234,
+        command_port=1234,
+        scid=None,
+        vcid=1,
+        frame_size=None,
+    ):
         self.gds_address = gds_address
         self.gds_port = gds_port
         self.telemetry_destination = (telemetry_address, telemetry_port)
@@ -70,7 +81,9 @@ class GroundSystemBridge:
                 connection = socket.create_connection((self.gds_address, self.gds_port))
                 with self.tcp_lock:
                     self.tcp_socket = connection
-                print(f"[INFO] Connected to GdsBridge at {self.gds_address}:{self.gds_port}")
+                print(
+                    f"[INFO] Connected to GdsBridge at {self.gds_address}:{self.gds_port}"
+                )
                 return connection
             except OSError:
                 time.sleep(RECONNECT_PERIOD_SECONDS)
@@ -88,7 +101,9 @@ class GroundSystemBridge:
             if not data:
                 if not self.running:
                     break
-                print("[WARNING] GdsBridge connection lost; reconnecting", file=sys.stderr)
+                print(
+                    "[WARNING] GdsBridge connection lost; reconnecting", file=sys.stderr
+                )
                 connection = self.connect()
                 pool = b""
                 continue
@@ -110,7 +125,10 @@ class GroundSystemBridge:
             with self.tcp_lock:
                 connection = self.tcp_socket
             if connection is None:
-                print("[WARNING] Dropping command: GdsBridge not connected", file=sys.stderr)
+                print(
+                    "[WARNING] Dropping command: GdsBridge not connected",
+                    file=sys.stderr,
+                )
                 continue
             try:
                 connection.sendall(framed)
@@ -142,23 +160,33 @@ class GroundSystemBridge:
 # Bridge arguments in the fprime_gds ParserBase specification format
 BRIDGE_ARGUMENTS = {
     ("--gds-address",): {
-        "action": "store", "default": "127.0.0.1", "type": str,
+        "action": "store",
+        "default": "127.0.0.1",
+        "type": str,
         "help": "GdsBridge TCP server address. Default: %(default)s",
     },
     ("--gds-port",): {
-        "action": "store", "default": 15010, "type": int,
+        "action": "store",
+        "default": 15010,
+        "type": int,
         "help": "GdsBridge TCP server port. Default: %(default)s",
     },
     ("--telemetry-port",): {
-        "action": "store", "default": 2234, "type": int,
+        "action": "store",
+        "default": 2234,
+        "type": int,
         "help": "GroundSystem telemetry UDP port. Default: %(default)s",
     },
     ("--command-port",): {
-        "action": "store", "default": 1234, "type": int,
+        "action": "store",
+        "default": 1234,
+        "type": int,
         "help": "GroundSystem command UDP port to listen on. Default: %(default)s",
     },
     ("--vcid",): {
-        "action": "store", "default": 1, "type": lambda value: int(value, 0),
+        "action": "store",
+        "default": 1,
+        "type": lambda value: int(value, 0),
         "help": "CCSDS virtual channel id. Default: %(default)s",
     },
 }
@@ -167,7 +195,10 @@ BRIDGE_ARGUMENTS = {
 def add_arguments(parser: argparse.ArgumentParser):
     """Add bridge arguments to an argument parser"""
     for flags, specification in BRIDGE_ARGUMENTS.items():
-        parser.add_argument(*flags, **{key: value for key, value in specification.items() if key != "action"})
+        parser.add_argument(
+            *flags,
+            **{key: value for key, value in specification.items() if key != "action"},
+        )
 
 
 def bridge_from_arguments(args, dictionary: Dictionary) -> GroundSystemBridge:
@@ -188,8 +219,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Bridge between the fprime_gds GdsBridge TCP server and the cFS GroundSystem"
     )
-    parser.add_argument("--dictionary", required=True,
-                        help="Path to the F Prime JSON dictionary")
+    parser.add_argument(
+        "--dictionary", required=True, help="Path to the F Prime JSON dictionary"
+    )
     add_arguments(parser)
     args = parser.parse_args()
     bridge = bridge_from_arguments(args, Dictionary(args.dictionary))

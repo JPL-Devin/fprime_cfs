@@ -52,12 +52,16 @@ class Dictionary:
         with open(str(path)) as file_handle:
             self.data = json.load(file_handle)
         self.type_definitions = {
-            entry["qualifiedName"]: entry for entry in self.data.get("typeDefinitions", [])
+            entry["qualifiedName"]: entry
+            for entry in self.data.get("typeDefinitions", [])
         }
         self.constants = {
-            entry["qualifiedName"]: entry["value"] for entry in self.data.get("constants", [])
+            entry["qualifiedName"]: entry["value"]
+            for entry in self.data.get("constants", [])
         }
-        self.channels = {entry["name"]: entry for entry in self.data.get("telemetryChannels", [])}
+        self.channels = {
+            entry["name"]: entry for entry in self.data.get("telemetryChannels", [])
+        }
         self.path = Path(path)
 
     def get_constant(self, qualified_name: str):
@@ -91,18 +95,26 @@ class Dictionary:
         if kind == "qualifiedIdentifier":
             definition = self.type_definitions.get(name)
             if definition is None:
-                raise DictionaryError(f"Type definition '{name}' not found in dictionary")
+                raise DictionaryError(
+                    f"Type definition '{name}' not found in dictionary"
+                )
             return self.resolve_definition(definition)
         if kind == "integer":
             return ResolvedType(
-                name=name, kind="integer", size=type_object["size"] // 8,
+                name=name,
+                kind="integer",
+                size=type_object["size"] // 8,
                 signed=type_object.get("signed", False),
             )
         if kind == "float":
             return ResolvedType(name=name, kind="float", size=type_object["size"] // 8)
         if kind == "bool":
-            return ResolvedType(name=name, kind="bool", size=type_object.get("size", 8) // 8)
-        raise DictionaryError(f"Type '{name}' of kind '{kind}' has no fixed primitive representation")
+            return ResolvedType(
+                name=name, kind="bool", size=type_object.get("size", 8) // 8
+            )
+        raise DictionaryError(
+            f"Type '{name}' of kind '{kind}' has no fixed primitive representation"
+        )
 
     def resolve_definition(self, definition: dict) -> ResolvedType:
         """Resolve a typeDefinitions entry down to a fixed-size primitive"""
@@ -117,8 +129,11 @@ class Dictionary:
                 for constant in definition.get("enumeratedConstants", [])
             }
             return ResolvedType(
-                name=qualified_name, kind="enum", size=representation.size,
-                signed=representation.signed, enum_constants=enum_constants,
+                name=qualified_name,
+                kind="enum",
+                size=representation.size,
+                signed=representation.signed,
+                enum_constants=enum_constants,
             )
         raise DictionaryError(
             f"Type '{qualified_name}' of kind '{kind}' has no fixed primitive representation"
@@ -140,13 +155,17 @@ class Dictionary:
                 f"found {len(packets)} ({names})"
             )
         packet = packets[0]
-        return Packet(name=packet["name"], id=packet["id"], members=list(packet["members"]))
+        return Packet(
+            name=packet["name"], id=packet["id"], members=list(packet["members"])
+        )
 
     def get_channel_type(self, channel_name: str) -> ResolvedType:
         """Resolve the type of a telemetry channel by qualified name"""
         channel = self.channels.get(channel_name)
         if channel is None:
-            raise DictionaryError(f"Telemetry channel '{channel_name}' not found in dictionary")
+            raise DictionaryError(
+                f"Telemetry channel '{channel_name}' not found in dictionary"
+            )
         return self.resolve_type(channel["type"])
 
     def get_commands(self) -> List[Command]:

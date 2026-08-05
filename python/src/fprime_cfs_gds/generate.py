@@ -25,13 +25,18 @@ def generate(dictionary: Dictionary, ground_system: Path):
     cmd_gui_dir = ground_system / "Subsystems" / "cmdGui"
     for directory in (tlm_gui_dir, cmd_gui_dir):
         if not directory.is_dir():
-            raise DictionaryError(f"'{directory}' is not a directory; expected a cFS-GroundSystem checkout")
+            raise DictionaryError(
+                f"'{directory}' is not a directory; expected a cFS-GroundSystem checkout"
+            )
     stream_id = generate_telemetry(dictionary, tlm_gui_dir)
     message_id, skipped = generate_commands(dictionary, cmd_gui_dir)
     print(f"[INFO] Telemetry page generated for stream id {stream_id:#06x}")
     print(f"[INFO] Command page generated for message id {message_id:#06x}")
     for skip in skipped:
-        print(f"[WARNING] Command skipped (no MiniCmdUtil representation): {skip}", file=sys.stderr)
+        print(
+            f"[WARNING] Command skipped (no MiniCmdUtil representation): {skip}",
+            file=sys.stderr,
+        )
 
 
 def main():
@@ -39,10 +44,18 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate cFS GroundSystem configuration from an F Prime dictionary"
     )
-    parser.add_argument("--dictionary", required=True, type=Path,
-                        help="Path to the F Prime JSON dictionary")
-    parser.add_argument("--ground-system", required=True, type=Path,
-                        help="Path to the cFS-GroundSystem directory to write configuration into")
+    parser.add_argument(
+        "--dictionary",
+        required=True,
+        type=Path,
+        help="Path to the F Prime JSON dictionary",
+    )
+    parser.add_argument(
+        "--ground-system",
+        required=True,
+        type=Path,
+        help="Path to the cFS-GroundSystem directory to write configuration into",
+    )
     args = parser.parse_args()
     try:
         generate(Dictionary(args.dictionary), args.ground_system)

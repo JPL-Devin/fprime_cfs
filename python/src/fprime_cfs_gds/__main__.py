@@ -49,7 +49,7 @@ class CfsGroundSystemParser(ParserBase):
                 "action": "store_true",
                 "default": False,
                 "help": "Write configuration into the cFS-GroundSystem directory in place "
-                        "instead of a temporary copy",
+                "instead of a temporary copy",
             },
         }
         arguments.update(comm.BRIDGE_ARGUMENTS)
@@ -122,12 +122,17 @@ def main():
         launched_apps = [launch_app] if parsed_args.app is not None else []
         processes = [launcher(parsed_args) for launcher in launched_apps]
         processes.append(launch_ground_system(ground_system_dir))
-        print("[INFO] F Prime cFS GroundSystem is now running. CTRL-C to shutdown all components.")
+        print(
+            "[INFO] F Prime cFS GroundSystem is now running. CTRL-C to shutdown all components."
+        )
         processes[-1].wait()
     except KeyboardInterrupt:
         print("[INFO] CTRL-C received. Exiting.")
     except Exception as exc:
-        print(f"[ERROR] Shutting down F Prime cFS GroundSystem due to error: {exc}", file=sys.stderr)
+        print(
+            f"[ERROR] Shutting down F Prime cFS GroundSystem due to error: {exc}",
+            file=sys.stderr,
+        )
         return 1
     # Processes are killed atexit
     return 0

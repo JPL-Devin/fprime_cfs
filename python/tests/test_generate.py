@@ -15,31 +15,61 @@ BASE_DICTIONARY = {
     "metadata": {"deploymentName": "Test"},
     "typeDefinitions": [
         {
-            "kind": "alias", "qualifiedName": "FwPacketDescriptorType",
+            "kind": "alias",
+            "qualifiedName": "FwPacketDescriptorType",
             "type": {"name": "U16", "kind": "integer", "size": 16, "signed": False},
-            "underlyingType": {"name": "U16", "kind": "integer", "size": 16, "signed": False},
+            "underlyingType": {
+                "name": "U16",
+                "kind": "integer",
+                "size": 16,
+                "signed": False,
+            },
         },
         {
-            "kind": "alias", "qualifiedName": "FwTlmPacketizeIdType",
+            "kind": "alias",
+            "qualifiedName": "FwTlmPacketizeIdType",
             "type": {"name": "U16", "kind": "integer", "size": 16, "signed": False},
-            "underlyingType": {"name": "U16", "kind": "integer", "size": 16, "signed": False},
+            "underlyingType": {
+                "name": "U16",
+                "kind": "integer",
+                "size": 16,
+                "signed": False,
+            },
         },
         {
-            "kind": "alias", "qualifiedName": "FwOpcodeType",
+            "kind": "alias",
+            "qualifiedName": "FwOpcodeType",
             "type": {"name": "FwIdType", "kind": "qualifiedIdentifier"},
-            "underlyingType": {"name": "U32", "kind": "integer", "size": 32, "signed": False},
+            "underlyingType": {
+                "name": "U32",
+                "kind": "integer",
+                "size": 32,
+                "signed": False,
+            },
         },
         {
-            "kind": "enum", "qualifiedName": "ComCfg.Apid",
-            "representationType": {"name": "U16", "kind": "integer", "size": 16, "signed": False},
+            "kind": "enum",
+            "qualifiedName": "ComCfg.Apid",
+            "representationType": {
+                "name": "U16",
+                "kind": "integer",
+                "size": 16,
+                "signed": False,
+            },
             "enumeratedConstants": [
                 {"name": "FW_PACKET_COMMAND", "value": 0},
                 {"name": "FW_PACKET_PACKETIZED_TLM", "value": 4},
             ],
         },
         {
-            "kind": "enum", "qualifiedName": "Test.Mode",
-            "representationType": {"name": "U8", "kind": "integer", "size": 8, "signed": False},
+            "kind": "enum",
+            "qualifiedName": "Test.Mode",
+            "representationType": {
+                "name": "U8",
+                "kind": "integer",
+                "size": 8,
+                "signed": False,
+            },
             "enumeratedConstants": [
                 {"name": "OFF", "value": 0},
                 {"name": "ON", "value": 1},
@@ -49,25 +79,56 @@ BASE_DICTIONARY = {
     "constants": [
         {"kind": "constant", "qualifiedName": "ComCfg.SpacecraftId", "value": 68},
         {"kind": "constant", "qualifiedName": "ComCfg.TmFrameFixedSize", "value": 1024},
-        {"kind": "constant", "qualifiedName": "ComCfg.FprimeCommandFunctionCode", "value": 0},
+        {
+            "kind": "constant",
+            "qualifiedName": "ComCfg.FprimeCommandFunctionCode",
+            "value": 0,
+        },
     ],
     "telemetryChannels": [
-        {"name": "comp.counter", "type": {"name": "U32", "kind": "integer", "size": 32, "signed": False}, "id": 1},
-        {"name": "comp.flag", "type": {"name": "U8", "kind": "integer", "size": 8, "signed": False}, "id": 2},
-        {"name": "comp.mode", "type": {"name": "Test.Mode", "kind": "qualifiedIdentifier"}, "id": 3},
+        {
+            "name": "comp.counter",
+            "type": {"name": "U32", "kind": "integer", "size": 32, "signed": False},
+            "id": 1,
+        },
+        {
+            "name": "comp.flag",
+            "type": {"name": "U8", "kind": "integer", "size": 8, "signed": False},
+            "id": 2,
+        },
+        {
+            "name": "comp.mode",
+            "type": {"name": "Test.Mode", "kind": "qualifiedIdentifier"},
+            "id": 3,
+        },
     ],
     "commands": [
-        {"name": "comp.NO_OP", "commandKind": "async", "opcode": 256, "formalParams": []},
         {
-            "name": "comp.SET_MODE", "commandKind": "async", "opcode": 257,
+            "name": "comp.NO_OP",
+            "commandKind": "async",
+            "opcode": 256,
+            "formalParams": [],
+        },
+        {
+            "name": "comp.SET_MODE",
+            "commandKind": "async",
+            "opcode": 257,
             "formalParams": [
-                {"name": "mode", "type": {"name": "Test.Mode", "kind": "qualifiedIdentifier"}},
+                {
+                    "name": "mode",
+                    "type": {"name": "Test.Mode", "kind": "qualifiedIdentifier"},
+                },
             ],
         },
         {
-            "name": "comp.NO_OP_STRING", "commandKind": "async", "opcode": 258,
+            "name": "comp.NO_OP_STRING",
+            "commandKind": "async",
+            "opcode": 258,
             "formalParams": [
-                {"name": "text", "type": {"name": "string", "kind": "string", "size": 40}},
+                {
+                    "name": "text",
+                    "type": {"name": "string", "kind": "string", "size": 40},
+                },
             ],
         },
     ],
@@ -75,8 +136,12 @@ BASE_DICTIONARY = {
         {
             "name": "TestPackets",
             "members": [
-                {"name": "Health", "id": 1, "group": 1,
-                 "members": ["comp.counter", "comp.flag", "comp.mode"]},
+                {
+                    "name": "Health",
+                    "id": 1,
+                    "group": 1,
+                    "members": ["comp.counter", "comp.flag", "comp.mode"],
+                },
             ],
         },
     ],
@@ -110,7 +175,17 @@ def test_telemetry_generation(tmp_path):
     assert rows[2][:4] == ["Time Microseconds", "13", "4", ">I"]
     assert rows[3][:5] == ["comp.counter", "17", "4", ">I", "Dec"]
     assert rows[4][:5] == ["comp.flag", "21", "1", "B", "Dec"]
-    assert rows[5][:9] == ["comp.mode", "22", "1", "B", "Enm", "OFF", "ON", "NULL", "NULL"]
+    assert rows[5][:9] == [
+        "comp.mode",
+        "22",
+        "1",
+        "B",
+        "Enm",
+        "OFF",
+        "ON",
+        "NULL",
+        "NULL",
+    ]
 
 
 def test_multiple_packets_error(tmp_path):
@@ -138,10 +213,13 @@ def test_command_generation(tmp_path):
     assert len(skipped) == 1 and "comp.NO_OP_STRING" in skipped[0]
 
     pages = [
-        line for line in (tmp_path / "command-pages.txt").read_text().splitlines()
+        line
+        for line in (tmp_path / "command-pages.txt").read_text().splitlines()
         if not line.startswith("#")
     ]
-    assert pages == ["F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 127.0.0.1, 1234"]
+    assert pages == [
+        "F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 127.0.0.1, 1234"
+    ]
 
     with (tmp_path / "CommandFiles" / "fprime_cmds").open("rb") as file_handle:
         descriptions, codes, param_files = pickle.load(file_handle)
@@ -150,7 +228,9 @@ def test_command_generation(tmp_path):
     assert codes == ["0", "0"]
 
     with (tmp_path / "ParameterFiles" / param_files[1]).open("rb") as file_handle:
-        data_types, names, _, descriptions, flags, string_lengths = pickle.load(file_handle)
+        data_types, names, _, descriptions, flags, string_lengths = pickle.load(
+            file_handle
+        )
     # The framing descriptor and opcode are prepended ahead of the command arguments
     assert names == ["FramingDescriptor", "Opcode", "mode"]
     assert flags == ["--uint16", "--uint32", "--uint8"]
@@ -161,8 +241,11 @@ def test_command_generation(tmp_path):
 
 def test_missing_function_code_error(tmp_path):
     data = copy.deepcopy(BASE_DICTIONARY)
-    data["constants"] = [c for c in data["constants"]
-                         if c["qualifiedName"] != "ComCfg.FprimeCommandFunctionCode"]
+    data["constants"] = [
+        c
+        for c in data["constants"]
+        if c["qualifiedName"] != "ComCfg.FprimeCommandFunctionCode"
+    ]
     dictionary = make_dictionary(tmp_path, data)
     with pytest.raises(DictionaryError, match="FprimeCommandFunctionCode"):
         generate_commands(dictionary, tmp_path)
@@ -170,7 +253,10 @@ def test_missing_function_code_error(tmp_path):
 
 def test_split_space_packets():
     def packet(apid, payload):
-        return bytes([apid >> 8, apid & 0xFF, 0xC0, 0x00, 0x00, len(payload) - 1]) + payload
+        return (
+            bytes([apid >> 8, apid & 0xFF, 0xC0, 0x00, 0x00, len(payload) - 1])
+            + payload
+        )
 
     telemetry = packet(0x0004, b"\x01\x02\x03")
     idle = packet(0x07FF, b"\x00\x00")

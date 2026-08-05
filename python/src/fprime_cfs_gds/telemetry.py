@@ -39,8 +39,16 @@ TLM_GUI_MAX_ROWS = 40
 PACKET_DEFINITION_FILE = "fprime-tlm.txt"
 TELEMETRY_PAGES_FILE = "telemetry-pages.txt"
 
-_INTEGER_FORMATS = {(1, False): "B", (1, True): "b", (2, False): "H", (2, True): "h",
-                    (4, False): "I", (4, True): "i", (8, False): "Q", (8, True): "q"}
+_INTEGER_FORMATS = {
+    (1, False): "B",
+    (1, True): "b",
+    (2, False): "H",
+    (2, True): "h",
+    (4, False): "I",
+    (4, True): "i",
+    (8, False): "Q",
+    (8, True): "q",
+}
 _FLOAT_FORMATS = {4: "f", 8: "d"}
 
 
@@ -50,15 +58,21 @@ def struct_format(resolved: ResolvedType) -> str:
         try:
             return _INTEGER_FORMATS[(resolved.size, resolved.signed)]
         except KeyError:
-            raise DictionaryError(f"No struct format for {resolved.size}-byte integer '{resolved.name}'")
+            raise DictionaryError(
+                f"No struct format for {resolved.size}-byte integer '{resolved.name}'"
+            )
     if resolved.kind == "float":
         try:
             return _FLOAT_FORMATS[resolved.size]
         except KeyError:
-            raise DictionaryError(f"No struct format for {resolved.size}-byte float '{resolved.name}'")
+            raise DictionaryError(
+                f"No struct format for {resolved.size}-byte float '{resolved.name}'"
+            )
     if resolved.kind == "bool":
         return "B"
-    raise DictionaryError(f"No struct format for type '{resolved.name}' of kind '{resolved.kind}'")
+    raise DictionaryError(
+        f"No struct format for type '{resolved.name}' of kind '{resolved.kind}'"
+    )
 
 
 def _type_column(resolved: ResolvedType) -> str:
@@ -94,7 +108,16 @@ def generate_telemetry(dictionary: Dictionary, tlm_gui_dir: Path) -> int:
 
     rows = []
     offset = SPACE_PACKET_HEADER_SIZE + descriptor_size
-    rows.append(("Packet Id", offset, packet_id_type.size, _type_column(packet_id_type), "Dec", ["NULL"] * 4))
+    rows.append(
+        (
+            "Packet Id",
+            offset,
+            packet_id_type.size,
+            _type_column(packet_id_type),
+            "Dec",
+            ["NULL"] * 4,
+        )
+    )
     offset += packet_id_type.size
     # Fw.Time: U16 time base, U8 time context, U32 seconds, U32 microseconds
     rows.append(("Time Seconds", offset + 3, 4, ">I", "Dec", ["NULL"] * 4))
@@ -104,7 +127,16 @@ def generate_telemetry(dictionary: Dictionary, tlm_gui_dir: Path) -> int:
     for channel_name in packet.members:
         resolved = dictionary.get_channel_type(channel_name)
         display, enums = _display_columns(resolved)
-        rows.append((channel_name, offset, resolved.size, _type_column(resolved), display, enums))
+        rows.append(
+            (
+                channel_name,
+                offset,
+                resolved.size,
+                _type_column(resolved),
+                display,
+                enums,
+            )
+        )
         offset += resolved.size
 
     if len(rows) > TLM_GUI_MAX_ROWS:
