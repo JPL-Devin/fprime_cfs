@@ -39,6 +39,8 @@ from .generate import generate
 TO_LAB_DEST_IP_SIZE = 16
 # Delay before sending the enable-output command, allowing a launched cFS application to boot
 ENABLE_TELEMETRY_DELAY_SECONDS = 3.0
+# Number of enable-output datagrams sent (UDP is unacknowledged and the command is idempotent)
+ENABLE_TELEMETRY_ATTEMPTS = 3
 
 
 class CfsGroundSystemParser(ParserBase):
@@ -132,14 +134,14 @@ def enable_telemetry(parsed_args):
     checksum) carrying the telemetry destination IP, exactly as the GroundSystem's
     "Enable Tlm" quick button would.
     """
-    payload = parsed_args.telemetry_destination.encode("ascii").ljust(
-        TO_LAB_DEST_IP_SIZE, b"\x00"
-    )
-    if len(payload) != TO_LAB_DEST_IP_SIZE:
+    destination = parsed_args.telemetry_destination.encode("ascii")
+    # TO_LAB consumes the destination as a NUL-terminated string within a fixed-size field
+    if len(destination) >= TO_LAB_DEST_IP_SIZE:
         raise ValueError(
             f"Telemetry destination '{parsed_args.telemetry_destination}' exceeds "
-            f"{TO_LAB_DEST_IP_SIZE} characters"
+            f"{TO_LAB_DEST_IP_SIZE - 1} characters"
         )
+    payload = destination.ljust(TO_LAB_DEST_IP_SIZE, b"\x00")
     header = struct.pack(
         ">HHH", parsed_args.to_lab_message_id, 0xC000, 2 + len(payload) - 1
     )
@@ -214,8 +216,11 @@ def main():
             processes.append(launch_app(parsed_args))
         processes.append(launch_ground_system(ground_system_dir))
         if not parsed_args.no_enable_telemetry:
-            time.sleep(ENABLE_TELEMETRY_DELAY_SECONDS)
-            enable_telemetry(parsed_args)
+            # UDP is unacknowledged: repeat the (idempotent) enable command so a
+            # slow-booting cFS application still receives one
+            for _ in range(ENABLE_TELEMETRY_ATTEMPTS):
+                time.sleep(ENABLE_TELEMETRY_DELAY_SECONDS)
+                enable_telemetry(parsed_args)
         print(
             "[INFO] F Prime cFS GroundSystem is now running. CTRL-C to shutdown all components."
         )

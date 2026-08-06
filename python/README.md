@@ -3,6 +3,10 @@
 Tooling for running the [cFS GroundSystem](https://github.com/nasa/cFS-GroundSystem) as the
 GDS for an F Prime deployment integrated through `fprime_cfs`.
 
+> **Note**: the CI_LAB/TO_LAB path used by this tooling carries commands and telemetry
+> over plain UDP with no authentication or integrity protection. It is intended for
+> isolated lab and bench networks only, not as an operational uplink.
+
 ## Installation
 
 ```bash
@@ -64,6 +68,14 @@ Generates the cFS GroundSystem configuration only:
   with a warning. A second `Telemetry Output` command page (the GroundSystem's stock
   TO_LAB command definitions) and a `quick-buttons.txt` with an `Enable Tlm` quick button
   are also written so telemetry output can be managed from the GUI.
+
+Limitations inherited from the GroundSystem GUI:
+
+- The tlmGUI telemetry page displays at most 40 rows; the tool errors if the packet
+  defines more channels/fields than fit.
+- MiniCmdUtil has no float or boolean entry: float arguments must be entered as their
+  raw IEEE-754 bit pattern and booleans as 0 (false) / 255 (true), as noted in each
+  generated parameter description.
 
 ```bash
 fprime-cfs-config --dictionary <dictionary.json> --ground-system <cFS-GroundSystem dir>

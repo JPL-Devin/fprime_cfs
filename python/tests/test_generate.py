@@ -389,3 +389,14 @@ def test_enable_telemetry_packet(monkeypatch):
     assert packet[7] == checksum
     # Payload: 16-byte destination IP string
     assert packet[8:] == b"127.0.0.1".ljust(16, b"\x00")
+
+
+def test_enable_telemetry_destination_too_long():
+    args = SimpleNamespace(
+        telemetry_destination="0123456789abcdef",  # 16 chars: no room for NUL terminator
+        to_lab_message_id=0x1880,
+        command_address="127.0.0.1",
+        command_port=1234,
+    )
+    with pytest.raises(ValueError, match="exceeds 15 characters"):
+        enable_telemetry(args)
