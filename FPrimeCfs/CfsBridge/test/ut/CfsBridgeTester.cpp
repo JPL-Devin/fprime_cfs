@@ -4,6 +4,7 @@
 // ======================================================================
 
 #include "CfsBridgeTester.hpp"
+#include "config/FppConstantsAc.hpp"
 #include <STest/Pick/Pick.hpp>
 #include <cstring>
 #include <limits>
@@ -260,7 +261,7 @@ void CfsBridgeTester ::testTransmitWrappedCommand() {
     ASSERT_EQ(call.totalSize, HEADER_SIZE + CFS_BRIDGE_CMD_SEC_HDR_SIZE + sizeof(payload));
     ASSERT_EQ(call.payloadSize, CFS_BRIDGE_CMD_SEC_HDR_SIZE + sizeof(payload));
     // The secondary header carries the F Prime passthrough function code, then the checksum
-    ASSERT_EQ(call.payload[0], CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE);
+    ASSERT_EQ(call.payload[0], ComCfg::FprimeCommandFunctionCode);
     // The original payload follows the secondary header unmodified
     ASSERT_EQ(std::memcmp(&call.payload[CFS_BRIDGE_CMD_SEC_HDR_SIZE], payload, sizeof(payload)), 0);
     // The checksum is valid per CFE_MSG conventions: XOR of every packet byte with 0xFF equals zero
@@ -338,7 +339,7 @@ void CfsBridgeTester ::testTransmitWrapExactBoundary() {
     ASSERT_EQ(CfeStub::state().transmitCount, 1u);
     const CfeStub::TransmitCall& call = CfeStub::state().transmitCalls[0];
     ASSERT_EQ(call.totalSize, CFS_BRIDGE_MAX_WRAPPED_PACKET_SIZE);
-    ASSERT_EQ(call.payload[0], CFS_BRIDGE_FPRIME_COMMAND_FUNCTION_CODE);
+    ASSERT_EQ(call.payload[0], ComCfg::FprimeCommandFunctionCode);
     ASSERT_EQ(std::memcmp(&call.payload[CFS_BRIDGE_CMD_SEC_HDR_SIZE], payload, payloadSize), 0);
 }
 

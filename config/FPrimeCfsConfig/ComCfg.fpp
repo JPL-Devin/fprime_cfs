@@ -13,6 +13,9 @@ module ComCfg {
     @ Fixed size of CCSDS TM frames
     dictionary constant TmFrameFixedSize = 1024  # Needs to be at least COM_BUFFER_MAX_SIZE + (2 * SpacePacketHeaderSize) + 1
 
+    @ Function code carried in the cFS command secondary header of F Prime passthrough commands
+    dictionary constant FprimeCommandFunctionCode = 0
+
     @ Upper Bound on Fixed size of CCSDS AOS frames
     constant AosMaxFrameFixedSize = 1536
 
@@ -34,7 +37,8 @@ module ComCfg {
         FW_PACKET_TELEM          = 0x0001  @< Telemetry packet type - outgoing
         FW_PACKET_LOG            = 0x0002  @< Log type - outgoing
         FW_PACKET_FILE           = 0x0003  @< File type - incoming and outgoing
-        FW_PACKET_PACKETIZED_TLM = 0x0004  @< Packetized telemetry packet type
+        # 0x020 keeps the message id (0x0800 | APID) clear of the default cFE core telemetry topics
+        FW_PACKET_PACKETIZED_TLM = 0x0020  @< Packetized telemetry packet type
         FW_PACKET_DP             = 0x0005  @< Data Product packet type
         FW_PACKET_IDLE           = 0x0006  @< F Prime idle
         FW_PACKET_HAND           = 0x00FE  @< F Prime handshake
@@ -48,6 +52,7 @@ module ComCfg {
         comQueueIndex: FwIndexType  @< Queue Index used by the ComQueue, other components shall not modify
         apid: Apid                  @< 11 bits APID in CCSDS
         hasSecHdr: bool             @< Secondary header flag for SpacePacketFramer
+        sequenceFlags: U8           @< 2 bit Sequence flags (0b00=continuation, 0b01=first, 0b10=last, 0b11=unsegmented)
         sequenceCount: U16          @< 14 bit Sequence count - sequence count is incremented per APID
         vcId: U8                    @< 6 bit Virtual Channel ID - used for AOS, TC, and TM Protocols
         pvn: Pvn                    @< Packet Version Number - used for AOS deframing to identify packet type
@@ -58,6 +63,7 @@ module ComCfg {
         comQueueIndex = 0
         apid = Apid.FW_PACKET_UNKNOWN
         hasSecHdr = false
+        sequenceFlags = 0x3
         sequenceCount = 0
         vcId = 1
         pvn = Pvn.INVALID_UNINITIALIZED
