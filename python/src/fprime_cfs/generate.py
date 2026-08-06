@@ -8,7 +8,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .commands import generate_commands
+from .commands import TO_LAB_DEFAULT_MESSAGE_ID, generate_commands
 from .dictionary import Dictionary, DictionaryError
 from .telemetry import generate_telemetry
 
@@ -18,6 +18,7 @@ def generate(
     ground_system: Path,
     command_host: str = "127.0.0.1",
     command_port: int = 1234,
+    to_lab_message_id: int = TO_LAB_DEFAULT_MESSAGE_ID,
 ):
     """Generate all cFS GroundSystem configuration for the supplied dictionary
 
@@ -26,6 +27,7 @@ def generate(
         ground_system: path to a cFS-GroundSystem directory (containing Subsystems/)
         command_host: address the command GUI sends command datagrams to
         command_port: port the command GUI sends command datagrams to
+        to_lab_message_id: message id of the TO_LAB command page and quick button
     """
     ground_system = Path(ground_system)
     tlm_gui_dir = ground_system / "Subsystems" / "tlmGUI"
@@ -37,7 +39,11 @@ def generate(
             )
     stream_id = generate_telemetry(dictionary, tlm_gui_dir)
     message_id, skipped = generate_commands(
-        dictionary, cmd_gui_dir, command_host=command_host, command_port=command_port
+        dictionary,
+        cmd_gui_dir,
+        command_host=command_host,
+        command_port=command_port,
+        to_lab_message_id=to_lab_message_id,
     )
     print(f"[INFO] Telemetry page generated for stream id {stream_id:#06x}")
     print(f"[INFO] Command page generated for message id {message_id:#06x}")
@@ -76,6 +82,12 @@ def main():
         default=1234,
         help="Command UDP port written to the command page. Default: %(default)s",
     )
+    parser.add_argument(
+        "--to-lab-message-id",
+        type=lambda value: int(value, 0),
+        default=TO_LAB_DEFAULT_MESSAGE_ID,
+        help="Message id of the TO_LAB command application. Default: 0x1880",
+    )
     args = parser.parse_args()
     try:
         generate(
@@ -83,6 +95,7 @@ def main():
             args.ground_system,
             command_host=args.command_address,
             command_port=args.command_port,
+            to_lab_message_id=args.to_lab_message_id,
         )
     except DictionaryError as error:
         print(f"[ERROR] {error}", file=sys.stderr)

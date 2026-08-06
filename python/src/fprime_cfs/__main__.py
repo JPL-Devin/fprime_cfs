@@ -1,18 +1,23 @@
 """F Prime cFS GroundSystem runner
 
 This script is designed to replace fprime-gds with the cFS GroundSystem GDS. It generates
-cFS GroundSystem telemetry and command configuration from the F Prime dictionary, starts
-the TM/TC frame bridge to the fprime_gds GdsBridge application, and runs the
-cFS GroundSystem GUI against the generated configuration.
+cFS GroundSystem telemetry and command configuration from the F Prime dictionary,
+optionally launches the cFS application, and runs the cFS GroundSystem GUI against the
+generated configuration. The GroundSystem talks directly to the CI_LAB (command ingest)
+and TO_LAB (telemetry output) applications on the cFS software bus over UDP; the runner
+sends the TO_LAB enable-output command so telemetry flows without manual intervention.
 """
 
 import atexit
 import os
 import shutil
 import signal
+import socket
+import struct
 import subprocess
 import sys
 import tempfile
+import time
 
 from pathlib import Path
 from typing import Any, Dict, Tuple
@@ -26,9 +31,14 @@ from fprime_gds.executables.cli import (
 )
 from fprime_gds.executables.run_deployment import launch_app
 
-from . import comm
+from .commands import TO_LAB_DEFAULT_MESSAGE_ID, TO_LAB_OUTPUT_ENABLE_CC
 from .dictionary import Dictionary
 from .generate import generate
+
+# TO_LAB enable-output payload: a 16-character destination IP string
+TO_LAB_DEST_IP_SIZE = 16
+# Delay before sending the enable-output command, allowing a launched cFS application to boot
+ENABLE_TELEMETRY_DELAY_SECONDS = 3.0
 
 
 class CfsGroundSystemParser(ParserBase):
@@ -52,8 +62,35 @@ class CfsGroundSystemParser(ParserBase):
                 "help": "Write configuration into the cFS-GroundSystem directory in place "
                 "instead of a temporary copy",
             },
+            ("--command-address",): {
+                "action": "store",
+                "default": "127.0.0.1",
+                "help": "UDP address of the CI_LAB command ingest application. Default: %(default)s",
+            },
+            ("--command-port",): {
+                "action": "store",
+                "type": int,
+                "default": 1234,
+                "help": "UDP port of the CI_LAB command ingest application. Default: %(default)s",
+            },
+            ("--telemetry-destination",): {
+                "action": "store",
+                "default": "127.0.0.1",
+                "help": "Destination IP TO_LAB sends telemetry to (the GroundSystem host). "
+                "Default: %(default)s",
+            },
+            ("--to-lab-message-id",): {
+                "action": "store",
+                "type": lambda value: int(value, 0),
+                "default": TO_LAB_DEFAULT_MESSAGE_ID,
+                "help": "Message id of the TO_LAB command application. Default: 0x1880",
+            },
+            ("--no-enable-telemetry",): {
+                "action": "store_true",
+                "default": False,
+                "help": "Do not send the TO_LAB enable-output command on startup",
+            },
         }
-        arguments.update(comm.BRIDGE_ARGUMENTS)
         return arguments
 
     def handle_arguments(self, args, **kwargs):
@@ -83,8 +120,40 @@ def construct_ground_system(parsed_args, dictionary: Dictionary) -> Path:
         ground_system_dir,
         command_host=parsed_args.command_address,
         command_port=parsed_args.command_port,
+        to_lab_message_id=parsed_args.to_lab_message_id,
     )
     return ground_system_dir
+
+
+def enable_telemetry(parsed_args):
+    """Send the TO_LAB enable-output command through the CI_LAB command ingest port
+
+    Builds a cFS command packet (CCSDS primary header, cFS command secondary header with
+    checksum) carrying the telemetry destination IP, exactly as the GroundSystem's
+    "Enable Tlm" quick button would.
+    """
+    payload = parsed_args.telemetry_destination.encode("ascii").ljust(
+        TO_LAB_DEST_IP_SIZE, b"\x00"
+    )
+    if len(payload) != TO_LAB_DEST_IP_SIZE:
+        raise ValueError(
+            f"Telemetry destination '{parsed_args.telemetry_destination}' exceeds "
+            f"{TO_LAB_DEST_IP_SIZE} characters"
+        )
+    header = struct.pack(
+        ">HHH", parsed_args.to_lab_message_id, 0xC000, 2 + len(payload) - 1
+    )
+    secondary = bytearray([TO_LAB_OUTPUT_ENABLE_CC, 0])
+    checksum = 0xFF
+    for byte in header + bytes(secondary) + payload:
+        checksum ^= byte
+    secondary[1] = checksum
+    packet = header + bytes(secondary) + payload
+    print(
+        f"[INFO] Enabling TO_LAB telemetry output to {parsed_args.telemetry_destination}"
+    )
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(packet, (parsed_args.command_address, parsed_args.command_port))
 
 
 def launch_ground_system(ground_system_dir: Path):
@@ -137,10 +206,6 @@ def main():
         dictionary = Dictionary(parsed_args.dictionary)
         ground_system_dir = construct_ground_system(parsed_args, dictionary)
 
-        bridge = comm.bridge_from_arguments(parsed_args, dictionary)
-        atexit.register(bridge.stop)
-        bridge.start()
-
         processes = []
         if not parsed_args.noapp and parsed_args.app is not None:
             # cFS applications take no GDS connection arguments by default
@@ -148,6 +213,9 @@ def main():
                 parsed_args.application_arguments = []
             processes.append(launch_app(parsed_args))
         processes.append(launch_ground_system(ground_system_dir))
+        if not parsed_args.no_enable_telemetry:
+            time.sleep(ENABLE_TELEMETRY_DELAY_SECONDS)
+            enable_telemetry(parsed_args)
         print(
             "[INFO] F Prime cFS GroundSystem is now running. CTRL-C to shutdown all components."
         )

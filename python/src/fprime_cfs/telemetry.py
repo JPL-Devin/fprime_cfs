@@ -3,12 +3,13 @@
 Generates the tlmGUI configuration (telemetry-pages.txt and a packet definition file) for
 the single fixed F Prime telemetry packet.
 
-The datagram delivered to the cFS GroundSystem is the space packet produced by the
-fprime_gds GdsBridge after the cFS telemetry secondary header has been stripped:
+The datagram delivered to the cFS GroundSystem is the space packet forwarded from the
+cFS software bus by the TO_LAB telemetry output application. F Prime telemetry framing
+(FPrimeCfs.CfsTlmFramer) inserts a cFS telemetry secondary header, so the packet is:
 
-    +--------------------+------------+--------+------------+---------------- - - -
-    | primary header (6) | descriptor | pkt id | time (11)  | channel values...
-    +--------------------+------------+--------+------------+---------------- - - -
+    +--------------------+-------------------+------------+--------+------------+------------- - - -
+    | primary header (6) | cFS sec header (6)| descriptor | pkt id | time (11)  | channel values...
+    +--------------------+-------------------+------------+--------+------------+------------- - - -
 
 Offsets written to the definition file are relative offsets: the tlmGUI adds the
 telemetry header offset from the main GroundSystem window (4 by default) to every item,
@@ -27,6 +28,10 @@ from .dictionary import Dictionary, DictionaryError, ResolvedType
 
 # CCSDS space packet primary header size in bytes
 SPACE_PACKET_HEADER_SIZE = 6
+# cFS telemetry secondary header size in bytes (4-byte seconds, 2-byte subseconds)
+CFS_TLM_SEC_HDR_SIZE = 6
+# Space packet stream identifier secondary header flag (big-endian 16 bits)
+STREAM_ID_SEC_HDR = 0x0800
 # Fw.Time serialized size in bytes: U16 base, U8 context, U32 seconds, U32 microseconds
 TIME_SIZE = 11
 # Telemetry header offset the GroundSystem main window applies to every item (version 1)
@@ -107,7 +112,7 @@ def generate_telemetry(dictionary: Dictionary, tlm_gui_dir: Path) -> int:
     )
 
     rows = []
-    offset = SPACE_PACKET_HEADER_SIZE + descriptor_size
+    offset = SPACE_PACKET_HEADER_SIZE + CFS_TLM_SEC_HDR_SIZE + descriptor_size
     rows.append(
         (
             "Packet Id",
@@ -171,9 +176,9 @@ def generate_telemetry(dictionary: Dictionary, tlm_gui_dir: Path) -> int:
                 f"{type_column}, {display}, {', '.join(enums)}\n"
             )
 
-    # The GdsBridge strips the cFS telemetry secondary header, so downlinked packets carry
-    # a stream identifier of PVN 0, telemetry type, no secondary header flag: the bare APID
-    stream_id = dictionary.get_apid("FW_PACKET_PACKETIZED_TLM")
+    # F Prime telemetry framing produces space packets with a cFS telemetry secondary
+    # header: the stream identifier is the secondary header flag over the bare APID
+    stream_id = dictionary.get_apid("FW_PACKET_PACKETIZED_TLM") | STREAM_ID_SEC_HDR
     pages_path = tlm_gui_dir / TELEMETRY_PAGES_FILE
     with pages_path.open("w") as file_handle:
         file_handle.write(

@@ -3,10 +3,12 @@
 import copy
 import json
 import pickle
+from types import SimpleNamespace
 
 import pytest
 
-from fprime_cfs.comm import split_space_packets
+import fprime_cfs.__main__ as runner
+from fprime_cfs.__main__ import enable_telemetry
 from fprime_cfs.commands import generate_commands
 from fprime_cfs.dictionary import Dictionary, DictionaryError
 from fprime_cfs.generate import generate
@@ -158,27 +160,27 @@ def make_dictionary(tmp_path, data):
 def test_telemetry_generation(tmp_path):
     dictionary = make_dictionary(tmp_path, BASE_DICTIONARY)
     stream_id = generate_telemetry(dictionary, tmp_path)
-    assert stream_id == 4
+    assert stream_id == 0x0804
 
     pages = (tmp_path / "telemetry-pages.txt").read_text().splitlines()
     data_lines = [line for line in pages if not line.startswith("#")]
-    assert data_lines == ["Health, GenericTelemetry.py, 0x0004, fprime-tlm.txt"]
+    assert data_lines == ["Health, GenericTelemetry.py, 0x0804, fprime-tlm.txt"]
 
     rows = [
         [column.strip() for column in line.split(",")]
         for line in (tmp_path / "fprime-tlm.txt").read_text().splitlines()
         if not line.startswith("#")
     ]
-    # Datagram layout: 6 header + 2 descriptor + 2 id + 11 time + values, minus the
-    # 4-byte offset applied by the GUI
-    assert rows[0][:4] == ["Packet Id", "4", "2", ">H"]
-    assert rows[1][:4] == ["Time Seconds", "9", "4", ">I"]
-    assert rows[2][:4] == ["Time Microseconds", "13", "4", ">I"]
-    assert rows[3][:5] == ["comp.counter", "17", "4", ">I", "Dec"]
-    assert rows[4][:5] == ["comp.flag", "21", "1", "B", "Dec"]
+    # Datagram layout: 6 header + 6 cFS sec header + 2 descriptor + 2 id + 11 time +
+    # values, minus the 4-byte offset applied by the GUI
+    assert rows[0][:4] == ["Packet Id", "10", "2", ">H"]
+    assert rows[1][:4] == ["Time Seconds", "15", "4", ">I"]
+    assert rows[2][:4] == ["Time Microseconds", "19", "4", ">I"]
+    assert rows[3][:5] == ["comp.counter", "23", "4", ">I", "Dec"]
+    assert rows[4][:5] == ["comp.flag", "27", "1", "B", "Dec"]
     assert rows[5][:9] == [
         "comp.mode",
-        "22",
+        "28",
         "1",
         "B",
         "Enm",
@@ -219,7 +221,18 @@ def test_command_generation(tmp_path):
         if not line.startswith("#")
     ]
     assert pages == [
-        "F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 127.0.0.1, 1234"
+        "F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 127.0.0.1, 1234",
+        "Telemetry Output, TO_LAB_CMD, 0x1880, LE, UdpCommands.py, 127.0.0.1, 1234",
+    ]
+
+    buttons = [
+        line
+        for line in (tmp_path / "quick-buttons.txt").read_text().splitlines()
+        if not line.startswith("#")
+    ]
+    assert buttons == [
+        "Telemetry Output, TO_LAB_CMD, Enable Tlm, 6, 0x1880, LE, "
+        "127.0.0.1, 1234, TO_LAB_OUTPUT_ENABLE_CC"
     ]
 
     with (tmp_path / "CommandFiles" / "fprime_cmds").open("rb") as file_handle:
@@ -282,7 +295,7 @@ def test_enum_fallback_display(tmp_path):
         for line in (tmp_path / "fprime-tlm.txt").read_text().splitlines()
         if not line.startswith("#")
     ]
-    assert rows[5][:5] == ["comp.mode", "22", "1", "B", "Dec"]
+    assert rows[5][:5] == ["comp.mode", "28", "1", "B", "Dec"]
 
 
 def test_float_and_bool_parameters(tmp_path):
@@ -331,7 +344,8 @@ def test_command_port_plumbing(tmp_path):
         if not line.startswith("#")
     ]
     assert pages == [
-        "F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 10.0.0.5, 5555"
+        "F Prime Commands, fprime_cmds, 0x1800, BE, UdpCommands.py, 10.0.0.5, 5555",
+        "Telemetry Output, TO_LAB_CMD, 0x1880, LE, UdpCommands.py, 10.0.0.5, 5555",
     ]
 
 
@@ -341,15 +355,37 @@ def test_generate_missing_ground_system_error(tmp_path):
         generate(dictionary, tmp_path / "nonexistent")
 
 
-def test_split_space_packets():
-    def packet(apid, payload):
-        return (
-            bytes([apid >> 8, apid & 0xFF, 0xC0, 0x00, 0x00, len(payload) - 1])
-            + payload
-        )
+def test_enable_telemetry_packet(monkeypatch):
+    sent = []
 
-    telemetry = packet(0x0004, b"\x01\x02\x03")
-    idle = packet(0x07FF, b"\x00\x00")
-    assert split_space_packets(telemetry + idle + telemetry) == [telemetry, telemetry]
-    # Truncated trailing packets are dropped
-    assert split_space_packets(telemetry + telemetry[:-1]) == [telemetry]
+    class FakeSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def sendto(self, packet, target):
+            sent.append((packet, target))
+
+    monkeypatch.setattr(runner.socket, "socket", lambda *args, **kwargs: FakeSocket())
+    args = SimpleNamespace(
+        telemetry_destination="127.0.0.1",
+        to_lab_message_id=0x1880,
+        command_address="127.0.0.1",
+        command_port=1234,
+    )
+    enable_telemetry(args)
+    assert len(sent) == 1
+    packet, target = sent[0]
+    assert target == ("127.0.0.1", 1234)
+    # CCSDS primary header: TO_LAB command MID, sec-header flag set, length = payload + 1
+    assert packet[:6] == bytes.fromhex("1880c0000011")
+    # Command secondary header: OUTPUT_ENABLE function code, then XOR checksum
+    assert packet[6] == 6
+    checksum = 0xFF
+    for byte in packet[:7] + packet[8:]:
+        checksum ^= byte
+    assert packet[7] == checksum
+    # Payload: 16-byte destination IP string
+    assert packet[8:] == b"127.0.0.1".ljust(16, b"\x00")

@@ -16,7 +16,6 @@ dependencies = [
 [project.scripts]
 fprime-cfs = "fprime_cfs.__main__:main"
 fprime-cfs-config = "fprime_cfs.generate:main"
-fprime-cfs-comm = "fprime_cfs.comm:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

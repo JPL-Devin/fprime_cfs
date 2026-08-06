@@ -14,9 +14,17 @@ pip install ./python  # from the fprime_cfs checkout root
 ### `fprime-cfs`
 
 Runs the full cFS GroundSystem GDS: generates the GroundSystem configuration from the
-F Prime dictionary, starts the TM/TC frame bridge to the GdsBridge cFS application (from
+F Prime dictionary, optionally launches the cFS application, and launches the
+GroundSystem GUI. The GroundSystem talks directly to the cFS software bus over UDP
+through the standard lab applications: commands go to CI_LAB (default port 1234) and
+telemetry arrives from TO_LAB (default port 2234). On startup the runner sends the
+TO_LAB enable-output command (suppress with `--no-enable-telemetry`; the destination IP
+may be changed with `--telemetry-destination`).
+
+Connecting the F Prime GDS instead is done through the GdsBridge cFS application (from
 the [fprime-community/fprime_gds](https://github.com/fprime-community/fprime_gds) cFS
-library), and launches the GroundSystem GUI.
+library), which exposes a TCP server for `fprime-gds`; that path does not use this
+runner.
 
 ```bash
 fprime-cfs --dictionary <deployment>/dict/*TopologyDictionary.json \
@@ -53,19 +61,11 @@ Generates the cFS GroundSystem configuration only:
   framing descriptor and the command opcode are prepended as the first two parameters of
   every command; their fixed required values are given in each parameter description.
   Commands with arguments that MiniCmdUtil cannot represent (e.g. strings) are skipped
-  with a warning. An empty `Subsystems/cmdGui/quick-buttons.txt` placeholder is also
-  written.
+  with a warning. A second `Telemetry Output` command page (the GroundSystem's stock
+  TO_LAB command definitions) and a `quick-buttons.txt` with an `Enable Tlm` quick button
+  are also written so telemetry output can be managed from the GUI.
 
 ```bash
 fprime-cfs-config --dictionary <dictionary.json> --ground-system <cFS-GroundSystem dir>
 ```
 
-### `fprime-cfs-comm`
-
-Runs only the communication bridge: TCP CCSDS TM/TC frames (GdsBridge, default port
-15010) on one side, bare space packets over UDP (GroundSystem telemetry port 2234,
-command port 1234) on the other.
-
-```bash
-fprime-cfs-comm --dictionary <dictionary.json>
-```
