@@ -37,7 +37,8 @@ module ComCfg {
         FW_PACKET_TELEM          = 0x0001  @< Telemetry packet type - outgoing
         FW_PACKET_LOG            = 0x0002  @< Log type - outgoing
         FW_PACKET_FILE           = 0x0003  @< File type - incoming and outgoing
-        FW_PACKET_PACKETIZED_TLM = 0x0004  @< Packetized telemetry packet type
+        # 0x020 keeps the message id (0x0800 | APID) clear of the default cFE core telemetry topics
+        FW_PACKET_PACKETIZED_TLM = 0x0020  @< Packetized telemetry packet type
         FW_PACKET_DP             = 0x0005  @< Data Product packet type
         FW_PACKET_IDLE           = 0x0006  @< F Prime idle
         FW_PACKET_HAND           = 0x00FE  @< F Prime handshake
