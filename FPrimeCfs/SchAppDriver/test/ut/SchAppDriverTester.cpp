@@ -69,8 +69,7 @@ void SchAppDriverTester ::sendSchMessage(Fw::Buffer& buffer, U8 functionCode) {
     for (FwSizeType i = 0; i < size; i++) {
         this->m_messageData[i] = static_cast<U8>(STest::Pick::lowerUpper(0, 0xFF));
     }
-    buffer.setData(this->m_messageData);
-    buffer.setSize(size);
+    buffer.set(this->m_messageData, size);
     this->invoke_to_cfsCommandIn(0, functionCode, buffer);
 }
 

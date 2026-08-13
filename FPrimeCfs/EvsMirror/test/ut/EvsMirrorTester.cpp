@@ -9,15 +9,20 @@
 
 namespace FPrimeCfs {
 
+const CFE_ES_AppId_t EvsMirrorTester::TEST_APP_ID;
+
 // ----------------------------------------------------------------------
 // Construction and destruction
 // ----------------------------------------------------------------------
 
 EvsMirrorTester ::EvsMirrorTester()
     : EvsMirrorGTestBase("EvsMirrorTester", EvsMirrorTester::MAX_HISTORY_SIZE), component("EvsMirror") {
+    // Inject the app ID before init so the component captures it there
+    CfeStub::reset();
+    CfeStub::state().appId = EvsMirrorTester::TEST_APP_ID;
     this->initComponents();
     this->connectPorts();
-    CfeStub::reset();
+    CfeStub::state().appId = CFE_ES_APPID_UNDEFINED;
 }
 
 EvsMirrorTester ::~EvsMirrorTester() {
@@ -44,6 +49,8 @@ void EvsMirrorTester ::testMirror() {
         const CfeStub::SendEventCall& call = CfeStub::state().sendEventCalls[0];
         ASSERT_EQ(call.eventId, static_cast<uint16>(id));
         ASSERT_EQ(call.eventType, CFE_EVS_EventType_ERROR);
+        // The app ID captured at init() is used, not a live lookup
+        ASSERT_EQ(call.appId, EvsMirrorTester::TEST_APP_ID);
         ASSERT_STREQ(call.text, text.toChar());
         ASSERT_EQ(logger.messageCount, 0u);
     }

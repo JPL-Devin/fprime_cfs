@@ -17,20 +17,26 @@ static const unsigned int STUB_MAX_ENTRIES = 32;
 //! Maximum formatted text bytes captured per sent event
 static const unsigned int STUB_MAX_TEXT = 256;
 
-//! Record of a CFE_EVS_SendEvent call
+//! Record of a CFE_EVS_SendEventWithAppID call
 struct SendEventCall {
     uint16 eventId;
     uint16 eventType;
+    CFE_ES_AppId_t appId;
     char text[STUB_MAX_TEXT];
 };
 
 //! Shared state of the cFE stub layer
 struct State {
-    // Injectable return status
+    // Injectable return statuses
     CFE_Status_t sendEventStatus;
+    CFE_Status_t getAppIdStatus;
+
+    // Injectable app ID returned by CFE_ES_GetAppID
+    CFE_ES_AppId_t appId;
 
     // Call records
     unsigned int sendEventCount;
+    unsigned int getAppIdCount;
     SendEventCall sendEventCalls[STUB_MAX_ENTRIES];
 };
 
