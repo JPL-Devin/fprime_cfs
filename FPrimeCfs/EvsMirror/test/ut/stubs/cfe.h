@@ -20,11 +20,9 @@ typedef uint32_t uint32;
 typedef int32_t int32;
 
 typedef int32 CFE_Status_t;
-typedef uint32 CFE_ES_AppId_t;
 
 #define CFE_SUCCESS ((CFE_Status_t)0)
 #define CFE_EVS_APP_NOT_REGISTERED ((CFE_Status_t)0xc2000005)
-#define CFE_ES_APPID_UNDEFINED ((CFE_ES_AppId_t)0)
 
 /* Event types (values match CFE_EVS_EventType_Enum_t) */
 #define CFE_EVS_EventType_DEBUG (1)
@@ -34,10 +32,6 @@ typedef uint32 CFE_ES_AppId_t;
 
 /* Event services API (implemented by CfeStubs.cpp) */
 CFE_Status_t CFE_EVS_SendEvent(uint16 EventID, uint16 EventType, const char* Spec, ...);
-CFE_Status_t CFE_EVS_SendEventWithAppID(uint16 EventID, uint16 EventType, CFE_ES_AppId_t AppID, const char* Spec, ...);
-
-/* Executive services API (implemented by CfeStubs.cpp) */
-CFE_Status_t CFE_ES_GetAppID(CFE_ES_AppId_t* AppIdPtr);
 
 #if defined(__cplusplus)
 }

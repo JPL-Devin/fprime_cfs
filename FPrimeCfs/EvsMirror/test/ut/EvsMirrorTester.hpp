@@ -24,9 +24,6 @@ class EvsMirrorTester final : public EvsMirrorGTestBase {
     // Instance ID supplied to the component instance under test
     static const FwEnumStoreType TEST_INSTANCE_ID = 0;
 
-    // App ID injected into the CFE_ES_GetAppID stub before component init
-    static const CFE_ES_AppId_t TEST_APP_ID = 0x1234;
-
   public:
     // ----------------------------------------------------------------------
     // Construction and destruction
