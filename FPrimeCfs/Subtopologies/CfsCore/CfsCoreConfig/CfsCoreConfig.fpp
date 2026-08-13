@@ -15,10 +15,12 @@ module CfsCoreConfig {
         constant tlmSend = 64 * 1024
     }
 
+    # Priorities use cFS/OSAL semantics: lower number = more urgent.
+    # Values sit below cFE core services but above background tasks.
     module Priorities {
-        constant cmdDisp = 35
-        constant $health = 24
-        constant events  = 23
-        constant tlmSend = 22
+        constant cmdDisp = 140
+        constant $health = 150
+        constant events  = 160
+        constant tlmSend = 170
     }
 }
