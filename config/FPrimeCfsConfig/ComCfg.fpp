@@ -41,11 +41,15 @@ module ComCfg {
         FW_PACKET_PACKETIZED_TLM = 0x0020  @< Packetized telemetry packet type
         FW_PACKET_DP             = 0x0005  @< Data Product packet type
         FW_PACKET_IDLE           = 0x0006  @< F Prime idle
+        FW_PACKET_PARAM          = 0x0007  @< Parameter value type - outgoing
         FW_PACKET_HAND           = 0x00FE  @< F Prime handshake
         FW_PACKET_UNKNOWN        = 0x00FF  @< F Prime unknown packet
         SPP_IDLE_PACKET          = 0x07FF  @< Per Space Packet Standard, all 1s (11bits) is reserved for Idle Packets
         INVALID_UNINITIALIZED    = 0x0800  @< Anything equal or higher value is invalid and should not be used
     } default INVALID_UNINITIALIZED
+
+    @ Reserved SA index sentinel meaning "unset"; SA index 0xFFFF cannot be selected via context
+    constant SaIndexUnset = 0xFFFF
 
     @ Type used to pass context info between components during framing/deframing
     struct FrameContext {
@@ -57,6 +61,7 @@ module ComCfg {
         vcId: U8                    @< 6 bit Virtual Channel ID - used for AOS, TC, and TM Protocols
         pvn: Pvn                    @< Packet Version Number - used for AOS deframing to identify packet type
         sendNow: bool               @< Flag to AOS Framer that the Frame this packet goes into should be sent ASAP
+        saIndex: U16                @< Security Association Index - set by SDLS deframers, read by SDLS framers
         functionCode: U8            @< cFS command function code, placed in the command secondary header by FPrimeCfs.CfsCmdFramer
 
     } default {
@@ -68,6 +73,7 @@ module ComCfg {
         vcId = 1
         pvn = Pvn.INVALID_UNINITIALIZED
         sendNow = false
+        saIndex = SaIndexUnset
         functionCode = 0
     }
 
