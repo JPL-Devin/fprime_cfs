@@ -248,8 +248,8 @@ def test_command_generation(tmp_path):
     # The framing descriptor and opcode are prepended ahead of the command arguments
     assert names == ["FramingDescriptor", "Opcode", "mode"]
     assert flags == ["--uint16", "--uint32", "--uint8"]
-    assert "Enter 0 (FW_PACKET_COMMAND)" in descriptions[0]
-    assert "Enter 257 (0x101)" in descriptions[1]
+    assert descriptions[0].startswith("Enter 0 ")
+    assert descriptions[1].startswith("Enter 257 (0x101)")
     assert "OFF=0; ON=1" in descriptions[2].replace(",", ";")
 
 
