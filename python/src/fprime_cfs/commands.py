@@ -100,12 +100,12 @@ def _command_parameters(
         _Parameter(
             "FramingDescriptor",
             descriptor,
-            "F Prime framing descriptor. Enter 0 (FW_PACKET_COMMAND)",
+            "Enter 0 - F Prime framing descriptor (FW_PACKET_COMMAND)",
         ),
         _Parameter(
             "Opcode",
             opcode_type,
-            f"F Prime opcode of {command.name}. Enter {command.opcode} ({command.opcode:#x})",
+            f"Enter {command.opcode} ({command.opcode:#x}) - F Prime opcode of {command.name}",
         ),
     ]
     for param in command.params:
