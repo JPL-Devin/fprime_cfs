@@ -63,7 +63,7 @@ module ComCfg {
         sendNow: bool               @< Flag to AOS Framer that the Frame this packet goes into should be sent ASAP
         saIndex: U16                @< Security Association Index - set by SDLS deframers, read by SDLS framers
         functionCode: U8            @< cFS command function code, placed in the command secondary header by FPrimeCfs.CfsCmdFramer
-
+        firstHeaderPointer: U16     @< 11 bit TM First Header Pointer - set by ComAggregator, read by TmFramer
     } default {
         comQueueIndex = 0
         apid = Apid.FW_PACKET_UNKNOWN
@@ -75,6 +75,7 @@ module ComCfg {
         sendNow = false
         saIndex = SaIndexUnset
         functionCode = 0
+        firstHeaderPointer = 0
     }
 
 }
