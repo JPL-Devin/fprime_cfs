@@ -79,9 +79,9 @@ class CfsBridge final : public CfsBridgeComponentBase
 
     //! Subscribe to a cFS message with the supplied F Prime apid
     //!
-    //! Subscribe to the message-bus for messages with the given APID.  If messages are available, they will be processed
-    //! in the components processQueue() function and sent out the dataOut port. Up to the configured pipe depth of
-    //! messages of this message ID may be queued.
+    //! Subscribe to the message-bus for messages with the given APID.  If messages are available, they will be
+    //! processed in the components processQueue() function and sent out the dataOut port. Up to the configured pipe
+    //! depth of messages of this message ID may be queued.
     CFE_Status_t subscribe(const ComCfg::Apid::T apid);
 
     //! Subscribe to a cFS message with the supplied F Prime apid and per-message-ID limit

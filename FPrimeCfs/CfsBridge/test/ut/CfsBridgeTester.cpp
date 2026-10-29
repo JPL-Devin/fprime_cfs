@@ -184,9 +184,8 @@ void CfsBridgeTester ::testSubscribeExplicitMessageLimit(const U16 limit) {
     const uint16 depth = 32;
     ASSERT_EQ(this->component.configure(depth, "TEST_PIPE"), CFE_SUCCESS);
     ASSERT_EQ(this->component.subscribe(ComCfg::Apid::FW_PACKET_COMMAND, limit), CFE_SUCCESS);
-    ASSERT_EQ(
-        this->component.subscribeCfs(ComCfg::Apid::FW_PACKET_TELEM, CfsBridge::CfsMessageType::TELEMETRY, limit),
-        CFE_SUCCESS);
+    ASSERT_EQ(this->component.subscribeCfs(ComCfg::Apid::FW_PACKET_TELEM, CfsBridge::CfsMessageType::TELEMETRY, limit),
+              CFE_SUCCESS);
     ASSERT_EQ(CfeStub::state().subscribeCount, 2u);
     for (U32 i = 0; i < 2; i++) {
         const CfeStub::SubscribeCall& call = CfeStub::state().subscribeCalls[i];
