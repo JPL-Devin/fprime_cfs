@@ -56,6 +56,20 @@ TEST(Nominal, SubscribeMessageLimit) {
     tester.testSubscribeMessageLimit();
 }
 
+TEST(Nominal, SubscribeExplicitMessageLimit) {
+    COMMENT("Subscriptions with an explicit message limit pass exactly that limit");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-015");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testSubscribeExplicitMessageLimit(8);
+}
+
+TEST(Nominal, SubscribeZeroMessageLimit) {
+    COMMENT("An explicit message limit of 0 is passed through to cFE unchanged");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-015");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testSubscribeExplicitMessageLimit(0);
+}
+
 TEST(Nominal, TransmitSinglePacket) {
     COMMENT("A single complete space packet is transmitted as one software bus message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");
