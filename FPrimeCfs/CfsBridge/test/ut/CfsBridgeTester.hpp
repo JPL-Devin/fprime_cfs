@@ -54,6 +54,12 @@ class CfsBridgeTester final : public CfsBridgeGTestBase {
     //! Subscriptions allow as many queued messages per message ID as the configured pipe depth
     void testSubscribeMessageLimit();
 
+    //! Subscriptions use the configured message limit when one is supplied
+    void testSubscribeExplicitMessageLimit();
+
+    //! Configure rejects message limits that would truncate in cFE's uint16 limit
+    void testConfigureMessageLimitTooLarge();
+
     // ----------------------------------------------------------------------
     // Tests: transmit (dataIn -> software bus)
     // ----------------------------------------------------------------------

@@ -72,11 +72,11 @@ match the downstream pipeline (e.g. a deframer/router stack).
 | FPRIMECFS-CFSBRIDGE-008 | `CfsBridge` shall emit a single `comStatusOut` SUCCESS (preroll) on the first `process()` call after subscription to open the downstream communication pipeline | Unit test |
 | FPRIMECFS-CFSBRIDGE-009 | `CfsBridge` shall return ownership of every buffer received on `dataIn` via `dataReturnOut` and shall emit a `comStatusOut` SUCCESS after every transmission attempt, regardless of outcome | Unit test |
 | FPRIMECFS-CFSBRIDGE-010 | `CfsBridge` shall subscribe to native cFS messages when `subscribeCfs()` is called, forming the message ID with the secondary header flag set and the packet type bit set for `CfsMessageType::COMMAND` and clear for `CfsMessageType::TELEMETRY` | Unit test |
-| FPRIMECFS-CFSBRIDGE-011 | `CfsBridge` shall reject a `configure()` pipe depth exceeding the cFE `uint16` pipe depth range with `CFE_SB_BAD_ARGUMENT` rather than silently truncating | Unit test |
+| FPRIMECFS-CFSBRIDGE-011 | `CfsBridge` shall reject a `configure()` pipe depth or message limit exceeding the cFE `uint16` range with `CFE_SB_BAD_ARGUMENT` rather than silently truncating | Unit test |
 | FPRIMECFS-CFSBRIDGE-012 | When configured with F Prime command wrapping enabled, `CfsBridge` shall transmit each F Prime command space packet (packet type command, no secondary header) as a valid cFS command packet: secondary header flag set, length field adjusted, and a 2-byte cFS command secondary header (function code `ComCfg.FprimeCommandFunctionCode` and a valid cFS XOR checksum) inserted between the primary header and the payload; telemetry packets and packets already carrying a secondary header shall be transmitted unmodified, and packets too large to wrap shall be dropped with a logged error | Unit test |
 | FPRIMECFS-CFSBRIDGE-013 | `CfsBridge` shall perform one `process()` call (drain the message queue and poll the software bus pipe once) for each invocation of `schedIn`, allowing rate-group driven operation | Unit test |
 | FPRIMECFS-CFSBRIDGE-014 | When `bufferAllocate` is connected, `CfsBridge` shall copy each received software bus message into an allocated buffer before emitting it on `dataOut`, shall deallocate the buffer when returned on `dataReturnIn`, and shall drop the message with a logged error when allocation fails | Unit test |
-| FPRIMECFS-CFSBRIDGE-015 | `CfsBridge` shall subscribe with a per-message-ID message limit equal to the configured pipe depth, so that the pipe depth alone bounds the number of queued messages of any one message ID | Unit test |
+| FPRIMECFS-CFSBRIDGE-015 | `CfsBridge` shall subscribe with a per-message-ID message limit equal to the `configure()` `msgLimit` when it is non-zero, and otherwise equal to the configured pipe depth | Unit test |
 
 ## Design
 
@@ -129,7 +129,8 @@ message whose size cannot be read is dropped with a logged error rather than ass
 ### Subscriptions
 
 `subscribe()` and `subscribeCfs()` use `CFE_SB_SubscribeEx()` with the default quality of service and
-a message limit equal to the configured pipe depth. `CFE_SB_Subscribe()` would limit each message ID
+a message limit equal to the `configure()` `msgLimit` argument when it is non-zero, and otherwise equal
+to the configured pipe depth (the default). `CFE_SB_Subscribe()` would limit each message ID
 to `CFE_PLATFORM_SB_DEFAULT_MSG_LIMIT` (4 by default) queued messages, so a burst of more messages
 of one ID (e.g. the events produced by one command) than that limit would be dropped by the software
 bus ("Msg Limit Err") while the pipe still had room.
@@ -173,3 +174,4 @@ Coverage: 100% lines, 100% functions.
 | 2026-08-04 | Add `bufferAllocate`/`bufferDeallocate` ports: received SB messages are copied into allocated buffers so downstream consumers may hold them past the polling cycle |
 | 2026-08-05 | Source the wrapped-command function code from the `ComCfg.FprimeCommandFunctionCode` dictionary constant instead of a local constant |
 | 2026-10-29 | Subscribe with a per-message-ID limit equal to the pipe depth (`CFE_SB_SubscribeEx`) instead of the cFE default limit of 4 |
+| 2026-10-29 | Add the optional `configure()` `msgLimit` argument; 0 (default) keeps the pipe-depth limit |

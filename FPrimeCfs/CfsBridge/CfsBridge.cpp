@@ -36,15 +36,16 @@ CfsBridge ::~CfsBridge() {}
 CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth,
                                    const char* pipeName,
                                    const bool paused,
-                                   const bool wrapFprimeCommands) {
-    // Pipe depth is a uint16 in cFE; reject depths that would silently truncate
-    if (pipeDepth > std::numeric_limits<uint16>::max()) {
+                                   const bool wrapFprimeCommands,
+                                   const FwSizeType msgLimit) {
+    // Pipe depth and message limit are uint16 in cFE; reject values that would silently truncate
+    if ((pipeDepth > std::numeric_limits<uint16>::max()) || (msgLimit > std::numeric_limits<uint16>::max())) {
         return CFE_SB_BAD_ARGUMENT;
     }
     CFE_Status_t status = CFE_SB_CreatePipe(&this->m_inputPipe, static_cast<uint16>(pipeDepth), pipeName);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = CONFIGURED;
-        this->m_pipeDepth = static_cast<uint16>(pipeDepth);
+        this->m_msgLimit = static_cast<U16>((msgLimit == 0) ? pipeDepth : msgLimit);
     }
     this->m_flowControlled = paused;
     this->m_wrapFprimeCommands = wrapFprimeCommands;
@@ -85,10 +86,10 @@ CFE_Status_t CfsBridge ::subscribeCfs(const ComCfg::Apid::T apid, const CfsMessa
 
 CFE_Status_t CfsBridge ::subscribeMessageId(const CFE_SB_MsgId_t msgId) {
     // CFE_SB_Subscribe limits each message ID to CFE_PLATFORM_SB_DEFAULT_MSG_LIMIT (4 by default) queued messages,
-    // dropping bursts (e.g. several events from one command) long before the pipe is full. Allow each message ID to
-    // fill the pipe so that the configured pipe depth alone bounds the backlog.
+    // dropping bursts (e.g. several events from one command) long before the pipe is full. Use the configured limit,
+    // which defaults to the pipe depth so that the pipe depth alone bounds the backlog.
     CFE_SB_Qos_t quality = {};  // Zero-initialized, equivalent to CFE_SB_DEFAULT_QOS
-    CFE_Status_t status = CFE_SB_SubscribeEx(msgId, this->m_inputPipe, quality, this->m_pipeDepth);
+    CFE_Status_t status = CFE_SB_SubscribeEx(msgId, this->m_inputPipe, quality, this->m_msgLimit);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = SUBSCRIBED;
     }

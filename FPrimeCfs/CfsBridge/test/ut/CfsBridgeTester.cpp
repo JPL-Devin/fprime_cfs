@@ -180,6 +180,26 @@ void CfsBridgeTester ::testSubscribeMessageLimit() {
     }
 }
 
+void CfsBridgeTester ::testSubscribeExplicitMessageLimit() {
+    const uint16 depth = 32;
+    const uint16 limit = 8;
+    ASSERT_EQ(this->component.configure(depth, "TEST_PIPE", false, false, limit), CFE_SUCCESS);
+    ASSERT_EQ(CfeStub::state().createPipeCalls[0].depth, depth);
+    ASSERT_EQ(this->component.subscribe(ComCfg::Apid::FW_PACKET_COMMAND), CFE_SUCCESS);
+    ASSERT_EQ(this->component.subscribeCfs(ComCfg::Apid::FW_PACKET_TELEM, CfsBridge::CfsMessageType::TELEMETRY),
+              CFE_SUCCESS);
+    ASSERT_EQ(CfeStub::state().subscribeCount, 2u);
+    ASSERT_EQ(CfeStub::state().subscribeCalls[0].msgLim, limit);
+    ASSERT_EQ(CfeStub::state().subscribeCalls[1].msgLim, limit);
+}
+
+void CfsBridgeTester ::testConfigureMessageLimitTooLarge() {
+    ASSERT_EQ(this->component.configure(10, "TEST_PIPE", false, false,
+                                        static_cast<FwSizeType>(std::numeric_limits<uint16>::max()) + 1),
+              CFE_SB_BAD_ARGUMENT);
+    ASSERT_EQ(CfeStub::state().createPipeCount, 0u);
+}
+
 // ----------------------------------------------------------------------
 // Tests: transmit (dataIn -> software bus)
 // ----------------------------------------------------------------------

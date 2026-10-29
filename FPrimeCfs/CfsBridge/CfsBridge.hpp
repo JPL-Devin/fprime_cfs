@@ -72,10 +72,13 @@ class CfsBridge final : public CfsBridgeComponentBase
     //! on `dataIn` (packet type command, no secondary header) are transmitted as valid cFS command packets: the
     //! secondary header flag is set, and a cFS command secondary header (function code
     //! `ComCfg.FprimeCommandFunctionCode` and a valid cFS XOR checksum) is inserted ahead of the payload.
+    //! `msgLimit` is the maximum number of queued messages per subscribed message ID; 0 (not set) uses `pipeDepth`.
+    //! `pipeDepth` and `msgLimit` must fit in cFE's U16 range, otherwise `CFE_SB_BAD_ARGUMENT` is returned.
     CFE_Status_t configure(const FwSizeType pipeDepth,
                            const char* pipeName = "CFS_BRIDGE_PIPE",
                            bool paused = false,
-                           bool wrapFprimeCommands = false);
+                           bool wrapFprimeCommands = false,
+                           const FwSizeType msgLimit = 0);
 
     //! Subscribe to a cFS message with the supplied F Prime apid
     //!
@@ -150,7 +153,7 @@ private:
                              Fw::Success &status) override;
 
     CFE_SB_PipeId_t m_inputPipe = {};  //!< Software bus pipe for receiving subscribed messages
-    uint16 m_pipeDepth = 0;  //!< Depth of the input pipe, also the per-message-ID limit of each subscription
+    U16 m_msgLimit = 0;  //!< Per-message-ID queued message limit of each subscription (msgLimit, or the pipe depth)
 
     ConfigurationState m_configurationState = UNCONFIGURED;  //!< Tracks the configuration state of the component to ensure proper ordering of operations
     bool m_prerolled = false;  //!< Initial comStatusOut signal has been sent to enable downstream data flow
