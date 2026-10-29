@@ -104,6 +104,9 @@ private:
     //! Helper to get cFS message ID or default
     CFE_SB_MsgId_t getCfsMessageId(const ComCfg::Apid::T apid);
 
+    //! Helper to subscribe the input pipe to a message ID, allowing up to the pipe depth of queued messages for it
+    CFE_Status_t subscribeMessageId(const CFE_SB_MsgId_t msgId);
+
     //! Helper to poll the cFS software bus for a message
     void poll();
 
@@ -147,6 +150,7 @@ private:
                              Fw::Success &status) override;
 
     CFE_SB_PipeId_t m_inputPipe = {};  //!< Software bus pipe for receiving subscribed messages
+    uint16 m_pipeDepth = 0;  //!< Depth of the input pipe, also the per-message-ID limit of each subscription
 
     ConfigurationState m_configurationState = UNCONFIGURED;  //!< Tracks the configuration state of the component to ensure proper ordering of operations
     bool m_prerolled = false;  //!< Initial comStatusOut signal has been sent to enable downstream data flow

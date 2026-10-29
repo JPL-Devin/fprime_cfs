@@ -49,6 +49,13 @@ TEST(OffNominal, SubscribeFailure) {
     tester.testSubscribeFailure();
 }
 
+TEST(Nominal, SubscribeMessageLimit) {
+    COMMENT("Subscriptions allow as many queued messages per message ID as the configured pipe depth");
+    REQUIREMENT("FPRIMECFS-CFSBRIDGE-015");
+    FPrimeCfs::CfsBridgeTester tester;
+    tester.testSubscribeMessageLimit();
+}
+
 TEST(Nominal, TransmitSinglePacket) {
     COMMENT("A single complete space packet is transmitted as one software bus message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");

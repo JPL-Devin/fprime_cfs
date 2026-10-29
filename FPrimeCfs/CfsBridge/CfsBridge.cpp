@@ -44,6 +44,7 @@ CFE_Status_t CfsBridge ::configure(const FwSizeType pipeDepth,
     CFE_Status_t status = CFE_SB_CreatePipe(&this->m_inputPipe, static_cast<uint16>(pipeDepth), pipeName);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = CONFIGURED;
+        this->m_pipeDepth = static_cast<uint16>(pipeDepth);
     }
     this->m_flowControlled = paused;
     this->m_wrapFprimeCommands = wrapFprimeCommands;
@@ -69,12 +70,7 @@ Fw::QueuedComponentBase::MsgDispatchStatus CfsBridge ::process() {
 
 CFE_Status_t CfsBridge ::subscribe(const ComCfg::Apid::T apid) {
     FW_ASSERT(this->m_configurationState != UNCONFIGURED);
-    CFE_SB_MsgId_t msgId = this->getCfsMessageId(apid);
-    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->m_inputPipe);
-    if (status == CFE_SUCCESS) {
-        this->m_configurationState = SUBSCRIBED;
-    }
-    return status;
+    return this->subscribeMessageId(this->getCfsMessageId(apid));
 }
 
 CFE_Status_t CfsBridge ::subscribeCfs(const ComCfg::Apid::T apid, const CfsMessageType type) {
@@ -84,8 +80,15 @@ CFE_Status_t CfsBridge ::subscribeCfs(const ComCfg::Apid::T apid, const CfsMessa
     U32 message_id = (static_cast<U32>(apid) & CFS_BRIDGE_SPACE_PACKET_APID_MASK) |
                      CFS_BRIDGE_SPACE_PACKET_SEC_HDR_MASK |
                      ((type == CfsMessageType::COMMAND) ? CFS_BRIDGE_SPACE_PACKET_TYPE_MASK : 0);
-    CFE_SB_MsgId_t msgId = CFE_SB_ValueToMsgId(message_id);
-    CFE_Status_t status = CFE_SB_Subscribe(msgId, this->m_inputPipe);
+    return this->subscribeMessageId(CFE_SB_ValueToMsgId(message_id));
+}
+
+CFE_Status_t CfsBridge ::subscribeMessageId(const CFE_SB_MsgId_t msgId) {
+    // CFE_SB_Subscribe limits each message ID to CFE_PLATFORM_SB_DEFAULT_MSG_LIMIT (4 by default) queued messages,
+    // dropping bursts (e.g. several events from one command) long before the pipe is full. Allow each message ID to
+    // fill the pipe so that the configured pipe depth alone bounds the backlog.
+    CFE_SB_Qos_t quality = {};  // Zero-initialized, equivalent to CFE_SB_DEFAULT_QOS
+    CFE_Status_t status = CFE_SB_SubscribeEx(msgId, this->m_inputPipe, quality, this->m_pipeDepth);
     if (status == CFE_SUCCESS) {
         this->m_configurationState = SUBSCRIBED;
     }
