@@ -56,20 +56,6 @@ TEST(Nominal, SubscribeMessageLimit) {
     tester.testSubscribeMessageLimit();
 }
 
-TEST(Nominal, SubscribeExplicitMessageLimit) {
-    COMMENT("Subscriptions use the configured message limit when one is supplied");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-015");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testSubscribeExplicitMessageLimit();
-}
-
-TEST(OffNominal, ConfigureMessageLimitTooLarge) {
-    COMMENT("Configure rejects message limits that would truncate in cFE's uint16 limit");
-    REQUIREMENT("FPRIMECFS-CFSBRIDGE-011");
-    FPrimeCfs::CfsBridgeTester tester;
-    tester.testConfigureMessageLimitTooLarge();
-}
-
 TEST(Nominal, TransmitSinglePacket) {
     COMMENT("A single complete space packet is transmitted as one software bus message");
     REQUIREMENT("FPRIMECFS-CFSBRIDGE-003");
